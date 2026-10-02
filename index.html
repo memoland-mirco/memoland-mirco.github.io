@@ -138,13 +138,20 @@
 
     .memory-map-logo {
       display: block;
-      width: 320px;
-      height: 88px;
-      flex: 0 1 320px;
+      width: 100%;
+      height: 100%;
       min-width: 0;
       object-fit: cover;
       object-position: center 46%;
       border-radius: 8px;
+    }
+
+    .memory-map-link {
+      display: block;
+      width: 320px;
+      height: 88px;
+      flex: 0 1 320px;
+      min-width: 0;
     }
 
     .brand-logo:hover {
@@ -1275,7 +1282,7 @@
       }
 
       .brand-logo,
-      .memory-map-logo {
+      .memory-map-link {
         width: 48%;
         height: 70px;
         flex-basis: auto;
@@ -1331,7 +1338,9 @@
     <header class="logo-strip">
       <div class="brand">
         <img class="brand-logo" src="assets/logo-memoland-horizontal.png" alt="Memoland">
-        <img class="memory-map-logo" src="assets/Logo Mapas de la Memoria.png" alt="Mapas de la Memoria">
+        <a class="memory-map-link" href="https://www.mapasdelamemoria.com/" aria-label="Ir a Mapas de la Memoria">
+          <img class="memory-map-logo" src="assets/Logo Mapas de la Memoria.png" alt="Mapas de la Memoria">
+        </a>
       </div>
     </header>
 
@@ -1414,7 +1423,7 @@
             </div>
             <div class="floating-filter floating-radius">
               <label class="visually-hidden" for="locationRadius">Kilómetros a la redonda</label>
-              <input id="locationRadius" type="number" min="0.1" step="0.1" value="2" aria-label="Kilómetros a la redonda" title="Kilómetros a la redonda">
+              <input id="locationRadius" type="number" min="0.1" step="0.1" value="20" aria-label="Kilómetros a la redonda" title="Kilómetros a la redonda">
             </div>
             <div class="floating-location-actions">
               <button id="locateButton" class="map-action-button floating-map-button location-primary" type="button">Posición actual</button>
@@ -2438,7 +2447,7 @@
       state.locationFilter = null;
       state.locationSuggestions = [];
       elements.locationQuery.value = '';
-      elements.locationRadius.value = '2';
+      elements.locationRadius.value = '20';
       setPickingPointMode(false);
 
       if (state.userLocationLayer) {
@@ -2454,7 +2463,7 @@
 
     function getCurrentRadiusKm() {
       const radiusKm = Number(String(elements.locationRadius.value).replace(',', '.'));
-      return Number.isFinite(radiusKm) && radiusKm > 0 ? radiusKm : 2;
+      return Number.isFinite(radiusKm) && radiusKm > 0 ? radiusKm : 20;
     }
 
     function applyLocationCenter(latitude, longitude, label, radiusKm, zoom = 14) {
@@ -2639,13 +2648,13 @@
     function initMap() {
       state.map = L.map('map', {
         zoomControl: true
-      }).setView([40.4168, -3.7038], 12);
+      }).setView([40.54, -3.765], 9);
       elements.mapZoomSlot.classList.toggle('leaflet-touch', elements.mapElement.classList.contains('leaflet-touch'));
       elements.mapZoomSlot.appendChild(state.map.zoomControl.getContainer());
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
-        attribution: '&copy; OpenStreetMap'
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       }).addTo(state.map);
 
       state.markerLayer = L.layerGroup().addTo(state.map);
