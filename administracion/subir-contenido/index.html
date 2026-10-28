@@ -1,0 +1,2592 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Memoland | Carga de contenido</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    :root {
+      --ink: #1f2933;
+      --muted: #667085;
+      --line: #d8dee8;
+      --soft: #f5f7fb;
+      --brand: #e21882;
+      --brand-dark: #a4135f;
+      --mint: #cce9e6;
+      --ok: #087443;
+      --bad: #b42318;
+      --warn: #b54708;
+      --white: #fff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--mint);
+      color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.45;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.62;
+    }
+
+    .shell {
+      width: 80%;
+      margin: 0 auto;
+      padding: 28px 0 42px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 22px;
+      position: relative;
+      min-height: 184px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      width: 270px;
+      height: 184px;
+      border-radius: 8px;
+      object-fit: contain;
+      background: var(--white);
+      border: 1px solid rgba(31, 41, 51, 0.1);
+      padding: 7px;
+    }
+
+    .page-title {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      margin: 0;
+      font-size: clamp(22px, 3vw, 32px);
+      line-height: 1.08;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .brand p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .partner-logos {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px 30px;
+      flex-wrap: wrap;
+      margin: 0 0 22px;
+      padding: 20px 22px;
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid rgba(31, 41, 51, 0.1);
+      border-radius: 8px;
+    }
+
+    .partner-logos img {
+      display: block;
+      flex: 1 1 170px;
+      max-width: 220px;
+      max-height: 76px;
+      object-fit: contain;
+    }
+
+    .partner-logos img.logo-small {
+      max-width: 150px;
+      max-height: 86px;
+    }
+
+    .partner-logos img.logo-foro {
+      flex-basis: 140px;
+      width: 140px;
+      height: 140px;
+      max-width: 140px;
+      max-height: 140px;
+      object-fit: contain;
+    }
+
+    .partner-logos img.logo-uam {
+      flex-basis: 250px;
+      max-width: 260px;
+      max-height: 92px;
+    }
+
+    .partner-logos img.logo-ministerio {
+      flex-basis: 210px;
+      max-width: 210px;
+      max-height: 116px;
+    }
+
+    .session {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+      min-width: 220px;
+      color: var(--muted);
+      font-size: 13px;
+      text-align: right;
+    }
+
+    .api-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      background: #fffaeb;
+      color: var(--warn);
+      border: 1px solid rgba(181, 71, 8, 0.24);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .api-status::before {
+      content: "";
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .api-status.connected {
+      background: #ecfdf3;
+      color: var(--ok);
+      border-color: rgba(8, 116, 67, 0.22);
+    }
+
+    .api-status.error {
+      background: #fef3f2;
+      color: var(--bad);
+      border-color: rgba(180, 35, 24, 0.24);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 360px minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--white);
+      border: 1px solid rgba(31, 41, 51, 0.1);
+      border-radius: 8px;
+      box-shadow: 0 16px 38px rgba(31, 41, 51, 0.1);
+    }
+
+    .panel-inner {
+      padding: 20px;
+    }
+
+    .panel-title {
+      margin: 0 0 6px;
+      font-size: 18px;
+      line-height: 1.2;
+    }
+
+    .panel-note {
+      margin: 0 0 18px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .logged-session {
+      display: grid;
+      gap: 12px;
+      padding: 14px;
+      background: var(--soft);
+      border: 1px solid rgba(31, 41, 51, 0.08);
+      border-radius: 8px;
+    }
+
+    .logged-session strong {
+      overflow-wrap: anywhere;
+    }
+
+    .field {
+      display: grid;
+      gap: 7px;
+      margin-bottom: 14px;
+    }
+
+    .label-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    label,
+    .label {
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      border: 1.5px solid var(--line);
+      border-radius: 8px;
+      background: #fbfcfe;
+      color: var(--ink);
+      padding: 11px 12px;
+      outline: none;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: var(--brand);
+      box-shadow: 0 0 0 3px rgba(226, 24, 130, 0.13);
+    }
+
+    textarea {
+      min-height: 118px;
+      resize: vertical;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .type-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin: 10px 0 18px;
+    }
+
+    .type-button {
+      min-height: 78px;
+      border: 1.5px solid var(--line);
+      border-radius: 8px;
+      background: var(--white);
+      color: var(--ink);
+      display: grid;
+      place-items: center;
+      gap: 5px;
+      font-weight: 700;
+    }
+
+    .type-button span:first-child {
+      font-size: 24px;
+      line-height: 1;
+    }
+
+    .type-button.active {
+      border-color: var(--brand);
+      background: #fde7f3;
+      color: var(--brand-dark);
+    }
+
+    .checkbox-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 10px;
+      background: var(--white);
+      font-size: 13px;
+      user-select: none;
+    }
+
+    .chip input {
+      width: auto;
+      margin: 0;
+    }
+
+    .icon-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+      gap: 10px;
+    }
+
+    .icon-option {
+      border: 1.5px solid var(--line);
+      border-radius: 8px;
+      background: var(--white);
+      color: var(--ink);
+      padding: 10px;
+      display: grid;
+      justify-items: center;
+      gap: 8px;
+      min-height: 118px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .icon-option img {
+      width: 54px;
+      height: 54px;
+      object-fit: contain;
+    }
+
+    .map-pin-preview {
+      width: 38px;
+      height: 38px;
+      border-radius: 50% 50% 50% 0;
+      background: #db4437;
+      transform: rotate(-45deg);
+      position: relative;
+      margin: 8px 0;
+      box-shadow: 0 2px 6px rgba(31, 41, 51, 0.22);
+    }
+
+    .map-pin-preview::after {
+      content: "";
+      position: absolute;
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: var(--white);
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .icon-option.active {
+      border-color: var(--brand);
+      background: #fde7f3;
+      color: var(--brand-dark);
+      box-shadow: 0 0 0 3px rgba(226, 24, 130, 0.12);
+    }
+
+    .subsection {
+      margin-top: 18px;
+      padding-top: 18px;
+      border-top: 1px solid rgba(31, 41, 51, 0.08);
+    }
+
+    .subsection-title {
+      margin: 0 0 12px;
+      font-size: 16px;
+      line-height: 1.25;
+    }
+
+    .section-copy {
+      margin: -6px 0 16px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 18px;
+    }
+
+    .button {
+      border: 0;
+      border-radius: 8px;
+      padding: 12px 15px;
+      background: var(--brand);
+      color: var(--white);
+      font-weight: 800;
+      min-height: 46px;
+    }
+
+    .button.secondary {
+      background: var(--ink);
+    }
+
+    .button.ghost {
+      background: transparent;
+      color: var(--ink);
+      border: 1.5px solid var(--line);
+    }
+
+    .status {
+      display: none;
+      margin-top: 14px;
+      padding: 12px 13px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      font-size: 13px;
+      white-space: pre-wrap;
+    }
+
+    .status.visible {
+      display: block;
+    }
+
+    .status.ok {
+      border-color: rgba(8, 116, 67, 0.22);
+      background: #ecfdf3;
+      color: var(--ok);
+    }
+
+    .status.bad {
+      border-color: rgba(180, 35, 24, 0.24);
+      background: #fef3f2;
+      color: var(--bad);
+    }
+
+    .status.warn {
+      border-color: rgba(181, 71, 8, 0.24);
+      background: #fffaeb;
+      color: var(--warn);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .section {
+      padding: 18px 20px;
+      border-top: 1px solid rgba(31, 41, 51, 0.08);
+    }
+
+    .section:first-child {
+      border-top: 0;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .section-head h2 {
+      margin: 0;
+      font-size: 17px;
+    }
+
+    .preview {
+      display: grid;
+      gap: 10px;
+      min-height: 74px;
+      padding: 14px;
+      background: var(--soft);
+      border: 1px solid rgba(31, 41, 51, 0.08);
+      border-radius: 8px;
+      margin-bottom: 16px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .preview strong {
+      color: var(--ink);
+    }
+
+    .file-line {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .file-icon {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      background: var(--ink);
+      color: var(--white);
+      flex: 0 0 auto;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .summary-item {
+      background: var(--soft);
+      border-radius: 8px;
+      padding: 10px;
+      min-width: 0;
+    }
+
+    .summary-item span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 3px;
+    }
+
+    .summary-item strong {
+      display: block;
+      overflow-wrap: anywhere;
+      font-size: 13px;
+    }
+
+    .summary-item.summary-wide {
+      grid-column: 1 / -1;
+    }
+
+    .map-tools {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin: 4px 0 10px;
+    }
+
+    .place-search {
+      display: grid;
+      gap: 8px;
+      margin: 10px 0 12px;
+    }
+
+    .place-search-row {
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) auto;
+      gap: 10px;
+      align-items: end;
+    }
+
+    .place-results {
+      display: grid;
+      gap: 6px;
+      max-height: 220px;
+      overflow: auto;
+    }
+
+    .place-result {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--ink);
+      padding: 9px 10px;
+      text-align: left;
+      font-weight: 700;
+    }
+
+    .place-result:hover {
+      border-color: var(--brand);
+      background: #fff7fb;
+    }
+
+    .place-result span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 400;
+      margin-top: 3px;
+    }
+
+    .map-shell {
+      min-height: 360px;
+      border: 1.5px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: var(--soft);
+    }
+
+    #locationMap {
+      width: 100%;
+      height: 360px;
+    }
+
+    .map-status {
+      min-height: 18px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .review-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 1200;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: rgba(17, 24, 39, 0.72);
+    }
+
+    .review-backdrop.hidden {
+      display: none;
+    }
+
+    .review-dialog {
+      width: min(920px, 100%);
+      max-height: calc(100vh - 40px);
+      overflow: auto;
+      border-radius: 10px;
+      background: var(--white);
+      box-shadow: 0 24px 70px rgba(17, 24, 39, 0.42);
+    }
+
+    .review-header {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--line);
+      background: var(--white);
+    }
+
+    .review-header h2 {
+      margin: 0;
+      font-size: 21px;
+    }
+
+    .review-body {
+      display: grid;
+      gap: 16px;
+      padding: 18px;
+    }
+
+    .review-notice {
+      margin: 0;
+      padding: 12px;
+      border: 1px solid rgba(8, 116, 67, 0.22);
+      border-radius: 8px;
+      background: #ecfdf3;
+      color: var(--ok);
+      font-weight: 700;
+    }
+
+    .review-notice.warning {
+      border-color: rgba(180, 83, 9, 0.28);
+      background: #fffbeb;
+      color: #92400e;
+    }
+
+    .review-summary {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .review-error {
+      margin: 0;
+      padding: 11px 12px;
+      border-radius: 8px;
+      background: #fef3f2;
+      color: var(--bad);
+      font-size: 13px;
+      font-weight: 700;
+      white-space: pre-wrap;
+    }
+
+    .review-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+    }
+
+    @media (max-width: 900px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .session {
+        min-width: 0;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .place-search-row {
+        grid-template-columns: 1fr;
+      }
+
+      .shell {
+        width: min(100% - 22px, 1120px);
+        padding-top: 16px;
+      }
+
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
+        min-height: 0;
+      }
+
+      .page-title {
+        position: static;
+        transform: none;
+        width: 100%;
+        white-space: normal;
+        order: 2;
+      }
+
+      .session {
+        width: 100%;
+        justify-content: space-between;
+        text-align: left;
+        order: 3;
+      }
+
+      .partner-logos {
+        justify-content: center;
+      }
+
+      .partner-logos img {
+        flex: 1 1 140px;
+        max-width: 168px;
+        max-height: 66px;
+      }
+
+      .partner-logos img.logo-foro {
+        width: 118px;
+        height: 118px;
+        max-width: 118px;
+        max-height: 118px;
+      }
+
+      .partner-logos img.logo-uam {
+        max-width: 210px;
+        max-height: 78px;
+      }
+
+      .partner-logos img.logo-ministerio {
+        max-width: 178px;
+        max-height: 96px;
+      }
+
+      .type-grid,
+      .row,
+      .summary,
+      .review-summary {
+        grid-template-columns: 1fr;
+      }
+
+      .review-actions {
+        flex-direction: column-reverse;
+      }
+
+      .review-actions .button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <img class="brand-mark" src="assets/logo-memoland-sinfondo.png" alt="Memoland">
+      </div>
+      <h1 class="page-title">Carga de contenido</h1>
+      <div class="session">
+        <span id="apiStatus" class="api-status">Conectando con Memoland</span>
+        <span id="sessionLabel">Sin sesion iniciada</span>
+        <button id="logoutButton" class="button ghost hidden" type="button">Salir</button>
+      </div>
+    </header>
+
+    <div class="partner-logos" aria-label="Logos institucionales">
+      <img src="assets/lasierra.png" alt="La Sierra" class="logo-foro">
+      <img src="assets/Logotipo_MIRCo_Color.png" alt="MIRCo">
+      <img src="assets/marcaUAM_AhorizontalColor.png" alt="Universidad Autonoma de Madrid" class="logo-uam">
+      <img src="assets/ministerio.png" alt="Ministerio" class="logo-ministerio">
+    </div>
+
+    <div class="layout">
+      <aside class="panel">
+        <div class="panel-inner">
+          <h2 class="panel-title" id="loginPanelTitle">Inicio de sesion</h2>
+          <p class="panel-note" id="loginPanelNote">Usa las mismas credenciales que en Memoland.</p>
+
+          <form id="loginForm">
+            <div class="field">
+              <label for="email">Email</label>
+              <input id="email" name="email" type="email" autocomplete="username" required>
+            </div>
+            <div class="field">
+              <label for="password">Contrasena</label>
+              <input id="password" name="password" type="password" autocomplete="current-password" required>
+            </div>
+            <div class="actions">
+              <button id="loginButton" class="button" type="submit">Iniciar sesion</button>
+            </div>
+            <div id="loginStatus" class="status"></div>
+          </form>
+
+          <div id="loggedInPanel" class="logged-session hidden">
+            <span>Sesion iniciada como</span>
+            <strong id="loggedInUserName">usuario</strong>
+            <button id="logoutPanelButton" class="button ghost" type="button">Cerrar sesion</button>
+          </div>
+        </div>
+      </aside>
+
+      <form id="uploadForm" class="panel" autocomplete="off" novalidate>
+        <section class="section">
+          <div class="section-head">
+            <h2>1. Tipo de contenido</h2>
+            <span class="hint">Foto, audio, texto o video</span>
+          </div>
+
+          <div class="type-grid" role="radiogroup" aria-label="Tipo de contenido">
+            <button class="type-button active" type="button" data-type="foto" aria-pressed="true">
+              <span>F</span>
+              <span>Foto</span>
+            </button>
+            <button class="type-button" type="button" data-type="audio" aria-pressed="false">
+              <span>A</span>
+              <span>Audio</span>
+            </button>
+            <button class="type-button" type="button" data-type="texto" aria-pressed="false">
+              <span>T</span>
+              <span>Texto</span>
+            </button>
+            <button class="type-button" type="button" data-type="video" aria-pressed="false">
+              <span>V</span>
+              <span>Video</span>
+            </button>
+          </div>
+
+          <div class="preview" id="contentPreview">
+            <div class="file-line">
+              <span class="file-icon">F</span>
+              <div><strong>Foto</strong><br>Selecciona una imagen JPG, PNG o HEIC.</div>
+            </div>
+          </div>
+
+          <div id="fileField" class="field">
+            <div class="label-row">
+              <label for="contentFile" id="fileLabel">Archivo de foto</label>
+              <span class="hint" id="fileHint">JPG, PNG, JPEG, HEIC</span>
+            </div>
+            <input id="contentFile" type="file" accept="image/*">
+          </div>
+
+          <div id="textField" class="field hidden">
+            <label for="textContent">Texto</label>
+            <textarea id="textContent" placeholder="Escribe aqui el texto que quieres subir. Tambien puedes adjuntar un documento Word, PDF, TXT u otro archivo."></textarea>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-head">
+            <h2>2. Datos principales</h2>
+            <span class="hint">Campos minimos de la ficha</span>
+          </div>
+
+          <div class="field">
+            <div class="label-row">
+              <label for="projectSelect">Proyecto</label>
+              <span class="hint" id="projectStatus">Cargando proyectos...</span>
+            </div>
+            <select id="projectSelect" required>
+              <option value="">Cargando proyectos...</option>
+            </select>
+          </div>
+
+          <div class="row hidden" id="manualProjectFields">
+            <div class="field">
+              <label for="projectId">ID de proyecto</label>
+              <input id="projectId" type="text" placeholder="Opcional">
+            </div>
+            <div class="field">
+              <label for="projectName">Nombre de proyecto</label>
+              <input id="projectName" type="text" placeholder="Memoland" value="Memoland">
+            </div>
+          </div>
+
+          <div class="field">
+            <div class="label-row">
+              <span class="label">Icono del contenido</span>
+              <span class="hint">Se guarda el nombre del archivo en la variable icon</span>
+            </div>
+            <input id="icon" type="hidden" value="google_maps_default">
+            <div id="iconGrid" class="icon-grid" aria-label="Selector de icono"></div>
+          </div>
+
+          <div class="field">
+            <label for="description">Descripcion</label>
+            <textarea id="description" required placeholder="Describe el contenido con una frase clara."></textarea>
+          </div>
+
+          <div class="row">
+            <div class="field">
+              <label for="city">Ciudad</label>
+              <input id="city" type="text" placeholder="Madrid" required>
+            </div>
+            <div class="field">
+              <label for="country">Pais</label>
+              <input id="country" type="text" placeholder="Espana" required>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="field">
+              <label for="latitude">Latitud</label>
+              <input id="latitude" type="number" min="-90" max="90" step="any" placeholder="40.4168" required>
+            </div>
+            <div class="field">
+              <label for="longitude">Longitud</label>
+              <input id="longitude" type="number" min="-180" max="180" step="any" placeholder="-3.7038" required>
+            </div>
+          </div>
+
+          <div class="field">
+            <div class="map-tools">
+              <div>
+                <span class="label">Seleccionar posicion en el mapa</span>
+                <div class="hint">Haz click en el mapa o arrastra el marcador para rellenar latitud y longitud.</div>
+              </div>
+              <button id="useLocationButton" class="button ghost" type="button">Usar mi ubicacion</button>
+            </div>
+            <div class="place-search">
+              <div class="place-search-row">
+                <div class="field">
+                  <label for="placeSearchInput">Buscar ciudad, pais o direccion</label>
+                  <input id="placeSearchInput" type="search" placeholder="Ej: Lisboa, Portugal">
+                </div>
+                <button id="placeSearchButton" class="button ghost" type="button">Buscar lugar</button>
+              </div>
+              <div id="placeResults" class="place-results"></div>
+            </div>
+            <div class="map-shell">
+              <div id="locationMap" aria-label="Mapa para seleccionar coordenadas"></div>
+            </div>
+            <div id="mapStatus" class="map-status">Cargando mapa...</div>
+          </div>
+
+        </section>
+
+        <section class="section">
+          <div class="section-head">
+            <h2>3. Ficha descriptiva</h2>
+            <span class="hint">Mismos campos de la app movil</span>
+          </div>
+          <p class="section-copy">Completa la informacion que conozcas. Los apartados de reconocimiento, represion y resistencia se muestran segun tus respuestas.</p>
+
+          <div class="field">
+            <span class="label">Tipo de hecho</span>
+            <div class="checkbox-grid" data-checkbox-group="eventTypes">
+              <label class="chip"><input type="checkbox" value="Represión"> Represión</label>
+              <label class="chip"><input type="checkbox" value="Resistencia"> Resistencia</label>
+            </div>
+          </div>
+
+          <div class="field">
+            <span class="label">Lugar donde ocurrió</span>
+            <div class="checkbox-grid" data-checkbox-group="occurrencePlaces">
+              <label class="chip"><input type="checkbox" value="Espacio público (calle, plaza, etc.)"> Espacio público (calle, plaza, etc.)</label>
+              <label class="chip"><input type="checkbox" value="Cárcel"> Cárcel</label>
+              <label class="chip"><input type="checkbox" value="Juzgado"> Juzgado</label>
+              <label class="chip"><input type="checkbox" value="Reformatorio / Preventivo"> Reformatorio / Preventivo</label>
+              <label class="chip"><input type="checkbox" value="Fosa común"> Fosa común</label>
+              <label class="chip"><input type="checkbox" value="Lugar de trabajo"> Trabajo</label>
+              <label class="chip"><input type="checkbox" value="Espacio educativo"> Educativo</label>
+              <label class="chip"><input type="checkbox" value="Otro"> Otro</label>
+            </div>
+          </div>
+
+          <div class="row conditional hidden" data-visible-if-group="occurrencePlaces" data-visible-if-value="Otro">
+            <div class="field">
+              <label for="occurrencePlaceOther">Otro lugar</label>
+              <input id="occurrencePlaceOther" type="text">
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="field">
+              <label for="period">Periodo</label>
+              <input id="period" type="text" placeholder="Ej. 1936-1975">
+            </div>
+            <div class="field">
+              <label for="hasRecognition">¿Tiene reconocimiento?</label>
+              <select id="hasRecognition">
+                <option value="">Sin indicar</option>
+                <option value="Sí">Sí</option>
+                <option value="No">No</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="source">Fuente</label>
+            <textarea id="source" placeholder="Origen de la informacion, testimonio, archivo, enlace, etc."></textarea>
+          </div>
+
+          <div class="subsection conditional hidden" data-visible-if-select="hasRecognition" data-visible-if-value="Sí">
+            <h3 class="subsection-title">Reconocimiento</h3>
+            <div class="field">
+              <span class="label">Actores del reconocimiento</span>
+              <div class="checkbox-grid" data-checkbox-group="recognitionActors">
+                <label class="chip"><input type="checkbox" value="Asociación memorialista"> Asociación memorialista</label>
+                <label class="chip"><input type="checkbox" value="Otro movimiento social"> Otro movimiento social</label>
+                <label class="chip"><input type="checkbox" value="Institución / ONG"> Institución / ONG</label>
+                <label class="chip"><input type="checkbox" value="Administración local"> Administración local</label>
+                <label class="chip"><input type="checkbox" value="Comunidad Autónoma"> Comunidad Autónoma</label>
+                <label class="chip"><input type="checkbox" value="Gobierno central"> Gobierno central</label>
+                <label class="chip"><input type="checkbox" value="Otro actor"> Otro actor</label>
+              </div>
+            </div>
+
+            <div class="field conditional hidden" data-visible-if-group="recognitionActors" data-visible-if-value="Otro actor">
+              <label for="recognitionActorOther">Otro actor</label>
+              <input id="recognitionActorOther" type="text">
+            </div>
+
+            <div class="field">
+              <span class="label">Formas de reconocimiento</span>
+              <div class="checkbox-grid" data-checkbox-group="recognitionForms">
+                <label class="chip"><input type="checkbox" value="Acto o evento reivindicativo de memoria"> Acto o evento reivindicativo de memoria</label>
+                <label class="chip"><input type="checkbox" value="Museo o espacio de memoria"> Museo o espacio de memoria</label>
+                <label class="chip"><input type="checkbox" value="Placa conmemorativa, señal o monumento"> Placa conmemorativa, señal o monumento</label>
+                <label class="chip"><input type="checkbox" value="Nombramiento de calle o plaza"> Nombramiento de calle o plaza</label>
+                <label class="chip"><input type="checkbox" value="Monumento"> Monumento</label>
+                <label class="chip"><input type="checkbox" value="Conjunto arquitectónico"> Conjunto arquitectónico</label>
+                <label class="chip"><input type="checkbox" value="Obra de arte o literaria"> Obra de arte o literaria</label>
+                <label class="chip"><input type="checkbox" value="Otra forma"> Otra forma</label>
+              </div>
+            </div>
+
+            <div class="field conditional hidden" data-visible-if-group="recognitionForms" data-visible-if-value="Otra forma">
+              <label for="recognitionFormOther">Otra forma</label>
+              <input id="recognitionFormOther" type="text">
+            </div>
+          </div>
+
+          <div class="subsection conditional hidden" data-visible-if-group="eventTypes" data-visible-if-value="Represión">
+            <h3 class="subsection-title">Represión</h3>
+
+            <div class="field">
+              <span class="label">Acciones de represión</span>
+              <div class="checkbox-grid" data-checkbox-group="repressionActions">
+                <label class="chip"><input type="checkbox" value="Detención"> Detención</label>
+                <label class="chip"><input type="checkbox" value="Juicio / Consejo de Guerra Sumarísimo"> Juicio / Consejo de Guerra Sumarísimo</label>
+                <label class="chip"><input type="checkbox" value="Trabajos forzados"> Trabajos forzados</label>
+                <label class="chip"><input type="checkbox" value="Prisión"> Prisión</label>
+                <label class="chip"><input type="checkbox" value="Redención de condena"> Redención de condena</label>
+                <label class="chip"><input type="checkbox" value="Destierro"> Destierro</label>
+                <label class="chip"><input type="checkbox" value="Libertad vigilada"> Libertad vigilada</label>
+                <label class="chip"><input type="checkbox" value="Pena de muerte: Fusilamiento"> Pena de muerte: Fusilamiento</label>
+                <label class="chip"><input type="checkbox" value="Pena de muerte: Garrote vil"> Pena de muerte: Garrote vil</label>
+                <label class="chip"><input type="checkbox" value="Ejecución extrajudicial (paseíllo)"> Ejecución extrajudicial (paseíllo)</label>
+                <label class="chip"><input type="checkbox" value="Secuestro o desaparición"> Secuestro o desaparición</label>
+                <label class="chip"><input type="checkbox" value="Traslado forzoso de cadáveres"> Traslado forzoso de cadáveres</label>
+                <label class="chip"><input type="checkbox" value="Expropiación"> Expropiación</label>
+                <label class="chip"><input type="checkbox" value="Depuración de puesto de trabajo"> Depuración de puesto de trabajo</label>
+                <label class="chip"><input type="checkbox" value="Multa"> Multa</label>
+                <label class="chip"><input type="checkbox" value="Otra"> Otra</label>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="field conditional hidden" data-visible-if-group="repressionActions" data-visible-if-value="Trabajos forzados">
+                <label for="forcedLaborYears">Años de trabajos forzados</label>
+                <input id="forcedLaborYears" type="text">
+              </div>
+              <div class="field conditional hidden" data-visible-if-group="repressionActions" data-visible-if-value="Prisión">
+                <label for="prisonYears">Años de prisión</label>
+                <input id="prisonYears" type="text">
+              </div>
+            </div>
+
+            <div class="field conditional hidden" data-visible-if-group="repressionActions" data-visible-if-value="Otra">
+              <label for="repressionActionOther">Otra acción de represión</label>
+              <input id="repressionActionOther" type="text">
+            </div>
+
+            <div class="field">
+              <span class="label">Grupos reprimidos</span>
+              <div class="checkbox-grid" data-checkbox-group="repressedGroups">
+                <label class="chip"><input type="checkbox" value="Militantes políticos/as"> Militantes políticos/as</label>
+                <label class="chip"><input type="checkbox" value="Sindicalistas"> Sindicalistas</label>
+                <label class="chip"><input type="checkbox" value="Activistas sociales"> Activistas sociales</label>
+                <label class="chip"><input type="checkbox" value="Mujeres"> Mujeres</label>
+                <label class="chip"><input type="checkbox" value="Personas LGBTIQ+"> Personas LGBTIQ+</label>
+                <label class="chip"><input type="checkbox" value="Jornaleros, campesinos o canteros"> Jornaleros, campesinos o canteros</label>
+                <label class="chip"><input type="checkbox" value="Maestros/as o profesorado"> Maestros/as o profesorado</label>
+                <label class="chip"><input type="checkbox" value="Ferroviarios, correos o telegrafistas"> Ferroviarios, correos o telegrafistas</label>
+                <label class="chip"><input type="checkbox" value="Artistas o tipógrafos"> Artistas o tipógrafos</label>
+                <label class="chip"><input type="checkbox" value="Vagos y maleantes"> Vagos y maleantes</label>
+                <label class="chip"><input type="checkbox" value="Otros"> Otros</label>
+              </div>
+            </div>
+
+            <div class="field conditional hidden" data-visible-if-group="repressedGroups" data-visible-if-value="Otros">
+              <label for="repressedGroupOther">Otro grupo reprimido</label>
+              <input id="repressedGroupOther" type="text">
+            </div>
+
+            <div class="row">
+              <div class="field">
+                <label for="victimMenCount">Víctimas hombres</label>
+                <input id="victimMenCount" type="text">
+              </div>
+              <div class="field">
+                <label for="victimWomenCount">Víctimas mujeres</label>
+                <input id="victimWomenCount" type="text">
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="victimOtherCount">Víctimas otro</label>
+              <input id="victimOtherCount" type="text">
+            </div>
+
+            <div class="field">
+              <label for="victimNames">Nombres de víctimas</label>
+              <textarea id="victimNames"></textarea>
+            </div>
+
+            <div class="field">
+              <label for="victimOccupation">Ocupación de víctimas</label>
+              <textarea id="victimOccupation"></textarea>
+            </div>
+
+            <div class="field">
+              <span class="label">Argumentos de represión</span>
+              <div class="checkbox-grid" data-checkbox-group="repressionArguments">
+                <label class="chip"><input type="checkbox" value="Ideológico"> Ideológico</label>
+                <label class="chip"><input type="checkbox" value="Subversión"> Subversión</label>
+                <label class="chip"><input type="checkbox" value="Terrorismo"> Terrorismo</label>
+                <label class="chip"><input type="checkbox" value="Relación familiar"> Relación familiar</label>
+                <label class="chip"><input type="checkbox" value="Identidad o expresión sexual"> Identidad o expresión sexual</label>
+                <label class="chip"><input type="checkbox" value="Por su profesión"> Por su profesión</label>
+                <label class="chip"><input type="checkbox" value="Otro"> Otro</label>
+              </div>
+            </div>
+
+            <div class="field conditional hidden" data-visible-if-group="repressionArguments" data-visible-if-value="Otro">
+              <label for="repressionArgumentOther">Otro argumento</label>
+              <input id="repressionArgumentOther" type="text">
+            </div>
+
+            <div class="field">
+              <span class="label">Perpetradores</span>
+              <div class="checkbox-grid" data-checkbox-group="perpetrators">
+                <label class="chip"><input type="checkbox" value="Ejército franquista"> Ejército franquista</label>
+                <label class="chip"><input type="checkbox" value="Falange / Jefe local del Movimiento"> Falange / Jefe local del Movimiento</label>
+                <label class="chip"><input type="checkbox" value="Guardia Civil"> Guardia Civil</label>
+                <label class="chip"><input type="checkbox" value="Policía política"> Policía política</label>
+                <label class="chip"><input type="checkbox" value="Grupos fascistas locales"> Grupos fascistas locales</label>
+                <label class="chip"><input type="checkbox" value="Cura"> Cura</label>
+                <label class="chip"><input type="checkbox" value="Otro"> Otro</label>
+              </div>
+            </div>
+
+            <div class="field conditional hidden" data-visible-if-group="perpetrators" data-visible-if-value="Otro">
+              <label for="perpetratorOther">Otro perpetrador</label>
+              <input id="perpetratorOther" type="text">
+            </div>
+          </div>
+
+          <div class="subsection conditional hidden" data-visible-if-group="eventTypes" data-visible-if-value="Resistencia">
+            <h3 class="subsection-title">Resistencia</h3>
+
+            <div class="field">
+              <span class="label">Acciones de resistencia</span>
+              <div class="checkbox-grid" data-checkbox-group="resistanceActions">
+                <label class="chip"><input type="checkbox" value="Protesta y/o movilización"> Protesta y/o movilización</label>
+                <label class="chip"><input type="checkbox" value="Actividad de organización política"> Actividad de organización política</label>
+                <label class="chip"><input type="checkbox" value="Sabotajes"> Sabotajes</label>
+                <label class="chip"><input type="checkbox" value="Guerrilla / Maqui"> Guerrilla / Maqui</label>
+                <label class="chip"><input type="checkbox" value="Homenaje o reconocimiento"> Homenaje o reconocimiento</label>
+                <label class="chip"><input type="checkbox" value="Demanda de exhumación"> Demanda de exhumación</label>
+                <label class="chip"><input type="checkbox" value="Acto de exhumación"> Acto de exhumación</label>
+                <label class="chip"><input type="checkbox" value="Otra"> Otra</label>
+              </div>
+            </div>
+
+            <div class="field conditional hidden" data-visible-if-group="resistanceActions" data-visible-if-value="Otra">
+              <label for="resistanceActionOther">Otra acción de resistencia</label>
+              <input id="resistanceActionOther" type="text">
+            </div>
+
+            <div class="field">
+              <span class="label">Contenidos de demanda</span>
+              <div class="checkbox-grid" data-checkbox-group="demandContents">
+                <label class="chip"><input type="checkbox" value="Memoria histórica / Antifascismo"> Memoria histórica / Antifascismo</label>
+                <label class="chip"><input type="checkbox" value="Derechos y libertades políticas"> Derechos y libertades políticas</label>
+                <label class="chip"><input type="checkbox" value="Derechos de trabajadores/as"> Derechos de trabajadores/as</label>
+                <label class="chip"><input type="checkbox" value="Derechos de las mujeres"> Derechos de las mujeres</label>
+                <label class="chip"><input type="checkbox" value="Demandas sociales"> Demandas sociales</label>
+                <label class="chip"><input type="checkbox" value="Demandas culturales"> Demandas culturales</label>
+                <label class="chip"><input type="checkbox" value="Derecho a la diversidad de género y sexual"> Derecho a la diversidad de género y sexual</label>
+                <label class="chip"><input type="checkbox" value="Otro"> Otro</label>
+              </div>
+            </div>
+
+            <div class="field conditional hidden" data-visible-if-group="demandContents" data-visible-if-value="Otro">
+              <label for="demandContentOther">Otro contenido</label>
+              <input id="demandContentOther" type="text">
+            </div>
+
+            <div class="field">
+              <span class="label">Organizadores</span>
+              <div class="checkbox-grid" data-checkbox-group="organizerTypes">
+                <label class="chip"><input type="checkbox" value="Asociación o movimiento social"> Asociación o movimiento social</label>
+                <label class="chip"><input type="checkbox" value="Organización política"> Organización política</label>
+                <label class="chip"><input type="checkbox" value="Sindicato o colectivo de trabajadores/as"> Sindicato o colectivo de trabajadores/as</label>
+                <label class="chip"><input type="checkbox" value="Colectivo de mujeres"> Colectivo de mujeres</label>
+                <label class="chip"><input type="checkbox" value="Colectivo LGTBIQ+"> Colectivo LGTBIQ+</label>
+                <label class="chip"><input type="checkbox" value="Institución educativa (instituto, colegio o universidad)"> Institución educativa (instituto, colegio o universidad)</label>
+                <label class="chip"><input type="checkbox" value="Administración pública (Ayuntamiento, CCAA o Gobierno central)"> Administración pública (Ayuntamiento, CCAA o Gobierno central)</label>
+                <label class="chip"><input type="checkbox" value="Iniciativa espontánea"> Iniciativa espontánea</label>
+                <label class="chip"><input type="checkbox" value="Otro"> Otro</label>
+              </div>
+            </div>
+
+            <div class="field conditional hidden" data-visible-if-group="organizerTypes" data-visible-if-value="Otro">
+              <label for="organizerTypeOther">Detalle de organizador</label>
+              <input id="organizerTypeOther" type="text">
+            </div>
+
+            <div class="field">
+              <label for="participantCount">Número de participantes</label>
+              <input id="participantCount" type="text">
+            </div>
+
+            <div class="field">
+              <label for="participantNames">Nombres de participantes</label>
+              <textarea id="participantNames"></textarea>
+            </div>
+
+            <div class="field">
+              <label for="participantOccupation">Ocupación de participantes</label>
+              <textarea id="participantOccupation"></textarea>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-head">
+            <h2>4. Revision</h2>
+            <span class="hint">Se enviara a la API de Memoland</span>
+          </div>
+
+          <div class="summary" id="summary"></div>
+
+          <div class="actions">
+            <button id="uploadButton" class="button" type="submit" disabled>Subir contenido</button>
+            <button id="clearButton" class="button ghost" type="button">Limpiar formulario</button>
+          </div>
+          <div id="uploadStatus" class="status"></div>
+        </section>
+      </form>
+    </div>
+  </main>
+
+  <div id="uploadReviewModal" class="review-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="uploadReviewTitle" aria-describedby="uploadReviewNotice">
+    <section class="review-dialog">
+      <header class="review-header">
+        <h2 id="uploadReviewTitle">Revisar contenido antes de subir</h2>
+        <button id="closeUploadReviewButton" class="button ghost" type="button">Cerrar</button>
+      </header>
+      <div class="review-body">
+        <p id="uploadReviewNotice" class="review-notice">Los campos obligatorios están completos. Comprueba especialmente proyecto, archivo y ubicación antes de confirmar.</p>
+        <div id="uploadReviewSummary" class="review-summary"></div>
+        <p id="uploadReviewError" class="review-error hidden" role="alert"></p>
+        <div class="review-actions">
+          <button id="cancelUploadReviewButton" class="button ghost" type="button">Volver al formulario</button>
+          <button id="confirmUploadButton" class="button" type="button">Confirmar y subir</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" onerror="this.onerror=null;this.src='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js';"></script>
+  <script>
+    const API_BASE_URL = 'https://www.vocesterritorios.com/apimemoland';
+    const PROJECTS_URL = 'https://vocesterritorios.com/apimemoland/projects/getProjects';
+    const FORM_SCHEMA = 'ficha_descriptiva_memoland_v1';
+    const MAP_ICON_BASE_PATH = 'assets/map-icons/220px';
+    const CARTO_API_KEY = 'cb1_3s0u_1_9f281c23f8777d9e3233b1dc';
+    const DEFAULT_MAP_ICON = 'google_maps_default';
+    const ICONS = [
+      DEFAULT_MAP_ICON,
+      'represion_condena',
+      'represion_detencion_juicio',
+      'represion_expropiacion',
+      'represion_fosa_comun',
+      'represion_muerte',
+      'resistencia_accion_directa',
+      'resistencia_accion_politica',
+      'resistencia_exhumacion',
+      'resistencia_homenaje_reconocimiento',
+      'resistencia_movilizacion_social'
+    ];
+
+    const contentMeta = {
+      foto: {
+        label: 'Foto',
+        endpoint: '/photo/createPhoto',
+        field: 'image',
+        accept: 'image/*',
+        fileLabel: 'Archivo de foto',
+        fileHint: 'JPG, PNG, JPEG, HEIC',
+        icon: 'F'
+      },
+      audio: {
+        label: 'Audio',
+        endpoint: '/audio/createAudio',
+        field: 'audio',
+        accept: 'audio/*',
+        fileLabel: 'Archivo de audio',
+        fileHint: 'M4A, MP3, WAV, AAC',
+        icon: 'A'
+      },
+      texto: {
+        label: 'Texto',
+        endpoint: '/text/createText',
+        field: 'text',
+        accept: '',
+        fileLabel: 'Archivo de texto o documento opcional',
+        fileHint: 'PDF, Word, TXT, ODT, RTF, etc.',
+        icon: 'T'
+      },
+      video: {
+        label: 'Video',
+        endpoint: '/video/createVideo',
+        field: 'video',
+        accept: 'video/mp4,video/quicktime,video/*',
+        fileLabel: 'Archivo de video',
+        fileHint: 'MP4 recomendado',
+        icon: 'V'
+      }
+    };
+
+    const state = {
+      type: 'foto',
+      token: localStorage.getItem('memolandUploadToken') || '',
+      user: JSON.parse(localStorage.getItem('memolandUploadUser') || 'null'),
+      projects: [],
+      map: null,
+      marker: null,
+      placeResults: [],
+      placeSearchTimer: null,
+      reverseGeocodeRequestId: 0,
+      pendingUpload: null,
+      uploadInProgress: false,
+      reviewTrigger: null
+    };
+
+    const $ = (selector) => document.querySelector(selector);
+    const $$ = (selector) => Array.from(document.querySelectorAll(selector));
+
+    const elements = {
+      loginForm: $('#loginForm'),
+      loginPanelTitle: $('#loginPanelTitle'),
+      loginPanelNote: $('#loginPanelNote'),
+      loggedInPanel: $('#loggedInPanel'),
+      loggedInUserName: $('#loggedInUserName'),
+      uploadForm: $('#uploadForm'),
+      loginButton: $('#loginButton'),
+      uploadButton: $('#uploadButton'),
+      logoutButton: $('#logoutButton'),
+      logoutPanelButton: $('#logoutPanelButton'),
+      clearButton: $('#clearButton'),
+      useLocationButton: $('#useLocationButton'),
+      placeSearchInput: $('#placeSearchInput'),
+      placeSearchButton: $('#placeSearchButton'),
+      placeResults: $('#placeResults'),
+      projectSelect: $('#projectSelect'),
+      projectStatus: $('#projectStatus'),
+      manualProjectFields: $('#manualProjectFields'),
+      iconGrid: $('#iconGrid'),
+      apiStatus: $('#apiStatus'),
+      sessionLabel: $('#sessionLabel'),
+      loginStatus: $('#loginStatus'),
+      mapStatus: $('#mapStatus'),
+      uploadStatus: $('#uploadStatus'),
+      typeButtons: $$('.type-button'),
+      fileField: $('#fileField'),
+      textField: $('#textField'),
+      fileInput: $('#contentFile'),
+      fileLabel: $('#fileLabel'),
+      fileHint: $('#fileHint'),
+      preview: $('#contentPreview'),
+      summary: $('#summary'),
+      uploadReviewModal: $('#uploadReviewModal'),
+      uploadReviewSummary: $('#uploadReviewSummary'),
+      uploadReviewNotice: $('#uploadReviewNotice'),
+      uploadReviewError: $('#uploadReviewError'),
+      closeUploadReviewButton: $('#closeUploadReviewButton'),
+      cancelUploadReviewButton: $('#cancelUploadReviewButton'),
+      confirmUploadButton: $('#confirmUploadButton')
+    };
+
+    function setStatus(node, kind, message) {
+      node.className = `status visible ${kind}`;
+      node.textContent = message;
+    }
+
+    function clearStatus(node) {
+      node.className = 'status';
+      node.textContent = '';
+    }
+
+    function normalizeUserPayload(userData) {
+      if (!userData) return null;
+      return {
+        ...userData,
+        id: userData.id || userData._id || userData.userId || '',
+        username: userData.username || userData.name || userData.email || '',
+        lastName: userData.lastName || userData.last_name || ''
+      };
+    }
+
+    function getValue(id) {
+      const node = $(`#${id}`);
+      return node ? node.value.trim() : '';
+    }
+
+    function getNumberValue(id) {
+      const value = getValue(id);
+      if (!value) return '';
+      const parsed = Number(value);
+      return Number.isNaN(parsed) ? '' : parsed;
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    function getCheckboxValues(groupName) {
+      return $$(`[data-checkbox-group="${groupName}"] input:checked`).map((input) => input.value);
+    }
+
+    function isGroupValueSelected(groupName, value) {
+      return getCheckboxValues(groupName).includes(value);
+    }
+
+    function appendFormValue(formData, key, value) {
+      if (value === undefined || value === null) return;
+      if (Array.isArray(value) || typeof value === 'object') {
+        formData.append(key, JSON.stringify(value));
+        return;
+      }
+      formData.append(key, String(value));
+    }
+
+    function setApiStatus(kind, message) {
+      elements.apiStatus.classList.toggle('connected', kind === 'connected');
+      elements.apiStatus.classList.toggle('error', kind === 'error');
+      elements.apiStatus.textContent = message;
+    }
+
+    function getProjectId(project) {
+      return project?.id || project?._id || project?.projectId || project?.uuid || '';
+    }
+
+    function getProjectName(project) {
+      return project?.name || project?.title || project?.projectName || project?.nombre || getProjectId(project) || 'Proyecto sin nombre';
+    }
+
+    function normalizeProjectsResponse(data) {
+      if (Array.isArray(data)) return data;
+      if (Array.isArray(data?.projects)) return data.projects;
+      if (Array.isArray(data?.data)) return data.data;
+      if (Array.isArray(data?.result)) return data.result;
+      return [];
+    }
+
+    function updateProjectFieldsFromSelect() {
+      const option = elements.projectSelect.selectedOptions[0];
+      const id = option?.value || '';
+      const name = option?.dataset.name || '';
+      $('#projectId').value = id;
+      $('#projectName').value = name;
+      updateSummary();
+    }
+
+    function selectDefaultProject() {
+      const options = Array.from(elements.projectSelect.options);
+      const memolandOption = options.find((option) => option.dataset.name?.trim().toLowerCase() === 'memoland');
+      const idOneOption = options.find((option) => option.value === '1');
+      const firstProjectOption = options.find((option) => option.value);
+      const defaultOption = memolandOption || idOneOption || firstProjectOption;
+
+      if (defaultOption) {
+        elements.projectSelect.value = defaultOption.value;
+      }
+
+      updateProjectFieldsFromSelect();
+    }
+
+    function getProjectCountLabel(count) {
+      if (count === 1) return 'Un solo proyecto disponible';
+      if (count > 1) return `${count} proyectos disponibles`;
+      return 'No hay proyectos disponibles';
+    }
+
+    function getIconLabel(fileName) {
+      if (fileName === 'google_maps_default') {
+        return 'Google Maps default';
+      }
+      return fileName
+        .replace(/\.png$/i, '')
+        .replaceAll('_', ' ')
+        .replace(/\b\w/g, (letter) => letter.toUpperCase());
+    }
+
+    function getIconFileName(iconName) {
+      if (iconName === 'represion_expropiacion') {
+        return 'represion_exprociacion.png';
+      }
+      return `${String(iconName).replace(/\.png$/i, '')}.png`;
+    }
+
+    function renderIconPreview(iconName) {
+      if (iconName === DEFAULT_MAP_ICON) {
+        return '<span class="map-pin-preview" aria-hidden="true"></span>';
+      }
+
+      return `<img src="${MAP_ICON_BASE_PATH}/${getIconFileName(iconName)}" alt="">`;
+    }
+
+    function renderIconSelector() {
+      elements.iconGrid.innerHTML = ICONS.map((iconName) => `
+        <button class="icon-option" type="button" data-icon="${iconName}" aria-pressed="false">
+          ${renderIconPreview(iconName)}
+          <span>${getIconLabel(iconName)}</span>
+        </button>
+      `).join('');
+    }
+
+    function selectIcon(iconName) {
+      $('#icon').value = iconName;
+      $$('.icon-option').forEach((button) => {
+        const active = button.dataset.icon === iconName;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-pressed', String(active));
+      });
+      updateSummary();
+    }
+
+    function buildFicha() {
+      return {
+        description: getValue('description'),
+        eventTypes: getCheckboxValues('eventTypes'),
+        occurrencePlaces: getCheckboxValues('occurrencePlaces'),
+        occurrencePlaceOther: getValue('occurrencePlaceOther'),
+        period: getValue('period'),
+        source: getValue('source'),
+        hasRecognition: getValue('hasRecognition'),
+        recognitionActors: getCheckboxValues('recognitionActors'),
+        recognitionActorOther: getValue('recognitionActorOther'),
+        recognitionForms: getCheckboxValues('recognitionForms'),
+        recognitionFormOther: getValue('recognitionFormOther'),
+        repressionActions: getCheckboxValues('repressionActions'),
+        forcedLaborYears: getValue('forcedLaborYears'),
+        prisonYears: getValue('prisonYears'),
+        repressionActionOther: getValue('repressionActionOther'),
+        repressedGroups: getCheckboxValues('repressedGroups'),
+        repressedGroupOther: getValue('repressedGroupOther'),
+        victimMenCount: getValue('victimMenCount'),
+        victimWomenCount: getValue('victimWomenCount'),
+        victimOtherCount: getValue('victimOtherCount'),
+        victimNames: getValue('victimNames'),
+        victimOccupation: getValue('victimOccupation'),
+        repressionArguments: getCheckboxValues('repressionArguments'),
+        repressionArgumentOther: getValue('repressionArgumentOther'),
+        perpetrators: getCheckboxValues('perpetrators'),
+        perpetratorOther: getValue('perpetratorOther'),
+        resistanceActions: getCheckboxValues('resistanceActions'),
+        resistanceActionOther: getValue('resistanceActionOther'),
+        demandContents: getCheckboxValues('demandContents'),
+        demandContentOther: getValue('demandContentOther'),
+        organizerTypes: getCheckboxValues('organizerTypes'),
+        organizerTypeOther: getValue('organizerTypeOther'),
+        participantCount: getValue('participantCount'),
+        participantNames: getValue('participantNames'),
+        participantOccupation: getValue('participantOccupation'),
+        place: {
+          latitude: getNumberValue('latitude'),
+          longitude: getNumberValue('longitude'),
+          city: getValue('city'),
+          country: getValue('country')
+        }
+      };
+    }
+
+    function buildPayload() {
+      const ficha = buildFicha();
+      const place = ficha.place;
+      const location = ficha.occurrencePlaceOther || ficha.occurrencePlaces.join(', ') || [place.city, place.country].filter(Boolean).join(', ');
+      const username = state.user?.username || state.user?.email || '';
+      const userId = state.user?.id || state.user?._id || state.user?.userId || '';
+
+      return {
+        formSchema: FORM_SCHEMA,
+        isDraft: false,
+        draft: false,
+        status: 'complete',
+        title: ficha.description,
+        description: ficha.description,
+        latitude: place.latitude,
+        longitude: place.longitude,
+        city: place.city,
+        country: place.country,
+        location,
+        fichaDescriptiva: ficha,
+        form: ficha,
+        formData: ficha,
+        fichaDescription: ficha.description,
+        fichaEventTypes: ficha.eventTypes,
+        fichaOccurrencePlaces: ficha.occurrencePlaces,
+        fichaOccurrencePlaceOther: ficha.occurrencePlaceOther,
+        fichaPlaceLatitude: place.latitude,
+        fichaPlaceLongitude: place.longitude,
+        fichaPlaceCity: place.city,
+        fichaPlaceCountry: place.country,
+        fichaPeriod: ficha.period,
+        fichaSource: ficha.source,
+        fichaHasRecognition: ficha.hasRecognition,
+        fichaRecognitionActors: ficha.recognitionActors,
+        fichaRecognitionActorOther: ficha.recognitionActorOther,
+        fichaRecognitionForms: ficha.recognitionForms,
+        fichaRecognitionFormOther: ficha.recognitionFormOther,
+        fichaRepressionActions: ficha.repressionActions,
+        fichaForcedLaborYears: ficha.forcedLaborYears,
+        fichaPrisonYears: ficha.prisonYears,
+        fichaRepressionActionOther: ficha.repressionActionOther,
+        fichaRepressedGroups: ficha.repressedGroups,
+        fichaRepressedGroupOther: ficha.repressedGroupOther,
+        fichaVictimMenCount: ficha.victimMenCount,
+        fichaVictimWomenCount: ficha.victimWomenCount,
+        fichaVictimOtherCount: ficha.victimOtherCount,
+        fichaVictimNames: ficha.victimNames,
+        fichaVictimOccupation: ficha.victimOccupation,
+        fichaRepressionArguments: ficha.repressionArguments,
+        fichaRepressionArgumentOther: ficha.repressionArgumentOther,
+        fichaPerpetrators: ficha.perpetrators,
+        fichaPerpetratorOther: ficha.perpetratorOther,
+        fichaResistanceActions: ficha.resistanceActions,
+        fichaResistanceActionOther: ficha.resistanceActionOther,
+        fichaDemandContents: ficha.demandContents,
+        fichaDemandContentOther: ficha.demandContentOther,
+        fichaOrganizerTypes: ficha.organizerTypes,
+        fichaOrganizerTypeOther: ficha.organizerTypeOther,
+        fichaParticipantCount: ficha.participantCount,
+        fichaParticipantNames: ficha.participantNames,
+        fichaParticipantOccupation: ficha.participantOccupation,
+        projectId: getValue('projectId'),
+        projectName: getValue('projectName') || 'Memoland',
+        icon: getValue('icon'),
+        fightingCategory: ficha.eventTypes.join(', ') || 'sin_categoria',
+        language: 'no_especificado',
+        secondLanguage: '',
+        space: ficha.occurrencePlaces.join(', ') || 'no_especificado',
+        category: ficha.eventTypes.join(', ') || 'sin_categoria',
+        newCategory: ficha.occurrencePlaceOther,
+        reason: ficha.source || 'sin_razon_especifica',
+        patrimonioTipo: ficha.eventTypes.join(', '),
+        patrimonioMaterial: ficha.repressionActions.join(', '),
+        patrimonioMaterialOtro: ficha.repressionActionOther,
+        patrimonioInmaterial: ficha.resistanceActions.join(', '),
+        patrimonioInmaterialOtro: ficha.resistanceActionOther,
+        ubicacion: ficha.occurrencePlaces.join(', '),
+        tipoEspacio: ficha.occurrencePlaceOther,
+        ambitoCultural: ficha.hasRecognition,
+        ambitoCulturalOtro: ficha.recognitionForms.join(', '),
+        usaLengua: false,
+        lengua1: ficha.source,
+        lengua1Otra: '',
+        usaLengua2: false,
+        lengua2: ficha.period,
+        lengua2Otra: '',
+        expresionColoquial: '',
+        comprension: '',
+        importanciaComunidad: ficha.repressedGroups.join(', '),
+        contribuyeDiversidad: ficha.demandContents.join(', '),
+        relacionCulturas: ficha.organizerTypes.join(', '),
+        formaMezcla: '',
+        accionObservada: ficha.eventTypes.join(', '),
+        accionObservadaOtra: '',
+        participacionComunidad: ficha.participantCount,
+        participacionPersonal: ficha.victimNames || ficha.participantNames,
+        username,
+        userId
+      };
+    }
+
+    function getMissingFichaFields() {
+      const missing = [];
+      const ficha = buildFicha();
+      const normalizedEventTypes = ficha.eventTypes.map((value) =>
+        String(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+      );
+
+      if (!ficha.description) missing.push('Descripción');
+      if (!ficha.eventTypes.length) missing.push('Tipo de hecho');
+      if (!ficha.occurrencePlaces.length) missing.push('Lugar donde ocurrió');
+      if (normalizedEventTypes.some((value) => value.includes('represi')) && !ficha.repressionActions.length) missing.push('Acciones de represion');
+      if (normalizedEventTypes.some((value) => value.includes('resistencia')) && !ficha.resistanceActions.length) missing.push('Acciones de resistencia');
+      if (ficha.occurrencePlaces.includes('Otro') && !ficha.occurrencePlaceOther) missing.push('Otro lugar');
+      if (ficha.hasRecognition === 'Sí' && !ficha.recognitionActors.length) missing.push('Actores del reconocimiento');
+      if (ficha.hasRecognition === 'Sí' && !ficha.recognitionForms.length) missing.push('Formas de reconocimiento');
+      if (ficha.recognitionActors.includes('Otro actor') && !ficha.recognitionActorOther) missing.push('Otro actor');
+      if (ficha.recognitionForms.includes('Otra forma') && !ficha.recognitionFormOther) missing.push('Otra forma');
+      if (ficha.repressionActions.includes('Otra') && !ficha.repressionActionOther) missing.push('Otra acción de represión');
+      if (ficha.repressedGroups.includes('Otros') && !ficha.repressedGroupOther) missing.push('Otro grupo reprimido');
+      if (ficha.repressionArguments.includes('Otro') && !ficha.repressionArgumentOther) missing.push('Otro argumento de represión');
+      if (ficha.perpetrators.includes('Otro') && !ficha.perpetratorOther) missing.push('Otro perpetrador');
+      if (ficha.resistanceActions.includes('Otra') && !ficha.resistanceActionOther) missing.push('Otra acción de resistencia');
+      if (ficha.demandContents.includes('Otro') && !ficha.demandContentOther) missing.push('Otro contenido de demanda');
+      if (ficha.organizerTypes.includes('Otro') && !ficha.organizerTypeOther) missing.push('Detalle de organizador');
+
+      return missing;
+    }
+
+    function validateUploadData(meta, file, textContent) {
+      const errors = [];
+      const ficha = buildFicha();
+      const latitudeText = getValue('latitude');
+      const longitudeText = getValue('longitude');
+      const latitude = Number(latitudeText);
+      const longitude = Number(longitudeText);
+      const addError = (message, fieldId = '') => errors.push({ message, fieldId });
+
+      if (!state.token || !state.user) addError('Primero inicia sesion.');
+      if (!getValue('projectId')) addError('Selecciona un proyecto valido.', 'projectSelect');
+      if (!getValue('projectName')) addError('El proyecto debe tener un nombre.', 'projectSelect');
+      if (!getValue('icon')) addError('Selecciona un icono para el contenido.', 'iconGrid');
+      getMissingFichaFields().forEach((message) => addError(message));
+      if (!ficha.place.city) addError('La ciudad es obligatoria.', 'city');
+      if (!ficha.place.country) addError('El pais es obligatorio.', 'country');
+
+      if (!latitudeText) {
+        addError('La latitud es obligatoria. Selecciona un punto en el mapa.', 'latitude');
+      } else if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
+        addError('La latitud debe estar entre -90 y 90.', 'latitude');
+      }
+
+      if (!longitudeText) {
+        addError('La longitud es obligatoria. Selecciona un punto en el mapa.', 'longitude');
+      } else if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+        addError('La longitud debe estar entre -180 y 180.', 'longitude');
+      }
+
+      if (state.type !== 'texto' && !file) addError(`Selecciona un archivo de ${meta.label.toLowerCase()}.`, 'contentFile');
+      if (file && file.size <= 0) addError('El archivo seleccionado esta vacio.', 'contentFile');
+      if (state.type === 'texto' && !file && !textContent) addError('Escribe un texto o adjunta un documento.', 'textContent');
+      if (!state.user?.username && !state.user?.email) addError('No se pudo identificar al usuario que sube el contenido.');
+
+      return errors;
+    }
+
+    function showUploadValidationErrors(errors) {
+      const messages = errors.map((error) => error.message);
+      setStatus(elements.uploadStatus, 'warn', `Revisa estos campos antes de continuar:\n- ${messages.join('\n- ')}`);
+
+      const firstFieldId = errors.find((error) => error.fieldId)?.fieldId;
+      if (!firstFieldId) return;
+
+      const field = $(`#${firstFieldId}`);
+      field?.focus();
+      field?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function updateSessionUi() {
+      const isLoggedIn = Boolean(state.token && state.user);
+      const userLabel = state.user?.username || state.user?.email || 'usuario';
+
+      elements.uploadButton.disabled = !isLoggedIn;
+      elements.loginForm.classList.toggle('hidden', isLoggedIn);
+      elements.loggedInPanel.classList.toggle('hidden', !isLoggedIn);
+      elements.logoutButton.classList.toggle('hidden', !isLoggedIn);
+      elements.loginPanelTitle.textContent = isLoggedIn ? 'Sesion activa' : 'Inicio de sesion';
+      elements.loginPanelNote.textContent = isLoggedIn
+        ? 'Ya puedes subir contenido a Memoland.'
+        : 'Usa las mismas credenciales que en Memoland.';
+      elements.loggedInUserName.textContent = userLabel;
+      elements.sessionLabel.textContent = isLoggedIn
+        ? `Sesion: ${userLabel}`
+        : 'Sin sesion iniciada';
+    }
+
+    async function loadProjects() {
+      elements.projectSelect.innerHTML = '<option value="">Cargando proyectos...</option>';
+      elements.projectSelect.disabled = true;
+      elements.projectStatus.textContent = 'Cargando proyectos...';
+      setApiStatus('pending', 'Conectando con Memoland');
+
+      try {
+        const response = await fetch(PROJECTS_URL);
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(`Error HTTP ${response.status}`);
+        }
+
+        const projects = normalizeProjectsResponse(data);
+        state.projects = projects;
+
+        elements.projectSelect.innerHTML = '';
+        projects.forEach((project) => {
+          const option = document.createElement('option');
+          option.value = getProjectId(project);
+          option.dataset.name = getProjectName(project);
+          option.textContent = getProjectName(project);
+          elements.projectSelect.appendChild(option);
+        });
+
+        if (!projects.length) {
+          elements.projectSelect.innerHTML = '<option value="">No hay proyectos disponibles</option>';
+        }
+
+        elements.projectSelect.disabled = !projects.length;
+        elements.projectStatus.textContent = getProjectCountLabel(projects.length);
+        elements.manualProjectFields.classList.add('hidden');
+        setApiStatus('connected', 'Conectado a Memoland');
+        selectDefaultProject();
+      } catch (error) {
+        elements.projectSelect.innerHTML = '<option value="">No se pudieron cargar proyectos</option>';
+        elements.projectSelect.disabled = true;
+        elements.projectStatus.textContent = 'Usa los campos manuales';
+        elements.manualProjectFields.classList.remove('hidden');
+        setApiStatus('error', 'Sin conexion a Memoland');
+      }
+    }
+
+    function setMapStatus(message) {
+      if (elements.mapStatus) {
+        elements.mapStatus.textContent = message;
+      }
+    }
+
+    function setCoordinates(lat, lng, options = {}) {
+      const normalizedLat = Number(lat);
+      const normalizedLng = Number(lng);
+      const validCoordinates = Number.isFinite(normalizedLat)
+        && Number.isFinite(normalizedLng)
+        && normalizedLat >= -90
+        && normalizedLat <= 90
+        && normalizedLng >= -180
+        && normalizedLng <= 180;
+
+      if (!validCoordinates) {
+        setMapStatus('Las coordenadas no son validas. La latitud debe estar entre -90 y 90 y la longitud entre -180 y 180.');
+        return;
+      }
+
+      $('#latitude').value = normalizedLat.toFixed(6);
+      $('#longitude').value = normalizedLng.toFixed(6);
+
+      if (state.map && state.marker && options.syncMap !== false) {
+        const point = [normalizedLat, normalizedLng];
+        state.marker.setLatLng(point);
+        state.map.setView(point, options.zoom || Math.max(state.map.getZoom(), 13));
+      }
+
+      setMapStatus(`Coordenadas seleccionadas: ${normalizedLat.toFixed(6)}, ${normalizedLng.toFixed(6)}`);
+      updateSummary();
+      return true;
+    }
+
+    async function fillPlaceFromCoordinates(lat, lng) {
+      const requestId = ++state.reverseGeocodeRequestId;
+      const normalizedLat = Number(lat);
+      const normalizedLng = Number(lng);
+
+      if (!Number.isFinite(normalizedLat) || !Number.isFinite(normalizedLng)) return;
+
+      $('#city').value = '';
+      $('#country').value = '';
+      updateSummary();
+      setMapStatus('Buscando automaticamente la ciudad y el pais...');
+
+      try {
+        const url = new URL('https://photon.komoot.io/reverse');
+        url.searchParams.set('lat', String(normalizedLat));
+        url.searchParams.set('lon', String(normalizedLng));
+        url.searchParams.set('limit', '1');
+
+        const response = await fetch(url.toString());
+        if (!response.ok) throw new Error(`Error HTTP ${response.status}`);
+
+        const data = await response.json();
+        if (requestId !== state.reverseGeocodeRequestId) return;
+
+        const properties = data?.features?.[0]?.properties || {};
+        const city = properties.city
+          || properties.locality
+          || properties.town
+          || properties.village
+          || properties.municipality
+          || properties.county
+          || properties.state
+          || '';
+        const country = properties.country || '';
+
+        if (city) $('#city').value = city;
+        if (country) $('#country').value = country;
+
+        const placeLabel = [city, country].filter(Boolean).join(', ');
+        setMapStatus(placeLabel
+          ? `Ubicacion identificada: ${placeLabel}.`
+          : `Coordenadas seleccionadas: ${normalizedLat.toFixed(6)}, ${normalizedLng.toFixed(6)}. Completa ciudad y pais manualmente.`);
+        updateSummary();
+      } catch (error) {
+        if (requestId !== state.reverseGeocodeRequestId) return;
+        setMapStatus(`Coordenadas seleccionadas: ${normalizedLat.toFixed(6)}, ${normalizedLng.toFixed(6)}. No se pudo identificar la ciudad y el pais automaticamente.`);
+      }
+    }
+
+    function renderPlaceResults(results) {
+      if (!elements.placeResults) return;
+
+      if (!results.length) {
+        elements.placeResults.innerHTML = '<div class="hint">No se encontraron lugares.</div>';
+        return;
+      }
+
+      elements.placeResults.innerHTML = results.map((place, index) => {
+        const city = place.city || '';
+        const country = place.country || '';
+        const details = [city, country].filter(Boolean).join(', ');
+
+        return `
+          <button class="place-result" type="button" data-place-index="${index}">
+            ${escapeHtml(place.display_name || 'Lugar sin nombre')}
+            ${details ? `<span>${escapeHtml(details)}</span>` : ''}
+          </button>
+        `;
+      }).join('');
+    }
+
+    async function searchPlaces() {
+      const query = elements.placeSearchInput?.value.trim();
+      if (!query) {
+        if (elements.placeResults) elements.placeResults.innerHTML = '';
+        return;
+      }
+
+      setMapStatus('Buscando lugar...');
+      if (elements.placeSearchButton) elements.placeSearchButton.disabled = true;
+
+      try {
+        const url = new URL('https://photon.komoot.io/api/');
+        url.searchParams.set('limit', '6');
+        url.searchParams.set('q', query);
+
+        const response = await fetch(url.toString());
+
+        if (!response.ok) {
+          throw new Error(`Error HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        const features = Array.isArray(data?.features) ? data.features : [];
+        state.placeResults = features.map((feature, index) => {
+          const [lon, lat] = feature.geometry?.coordinates || [];
+          const properties = feature.properties || {};
+          const city = properties.city || properties.locality || properties.town || properties.village || properties.county || '';
+          const country = properties.country || '';
+          const displayParts = [
+            properties.name,
+            properties.street && properties.street !== properties.name ? properties.street : null,
+            properties.postcode,
+            city,
+            properties.state,
+            country
+          ].filter(Boolean);
+
+          return {
+            place_id: properties.osm_id || `${query}-${index}`,
+            lat,
+            lon,
+            city,
+            country,
+            display_name: displayParts.length ? displayParts.join(', ') : query
+          };
+        }).filter((place) =>
+          Number.isFinite(Number(place.lat)) &&
+          Number.isFinite(Number(place.lon))
+        );
+        renderPlaceResults(state.placeResults);
+        setMapStatus(state.placeResults.length ? 'Elige un resultado para mover el marcador.' : 'No se encontraron lugares.');
+      } catch (error) {
+        if (elements.placeResults) elements.placeResults.innerHTML = '<div class="hint">No se pudo buscar el lugar. Intenta con otra ciudad o pais.</div>';
+        setMapStatus('No se pudo buscar el lugar.');
+      } finally {
+        if (elements.placeSearchButton) elements.placeSearchButton.disabled = false;
+      }
+    }
+
+    function selectPlaceResult(place) {
+      if (!place) return;
+
+      state.reverseGeocodeRequestId += 1;
+      setCoordinates(place.lat, place.lon, { zoom: 14 });
+
+      const city = place.city || '';
+      const country = place.country || '';
+
+      if (city) $('#city').value = city;
+      if (country) $('#country').value = country;
+
+      setMapStatus(`Lugar seleccionado: ${place.display_name || `${place.lat}, ${place.lon}`}`);
+      updateSummary();
+    }
+
+    function initLocationMap() {
+      if (!$('#locationMap')) return;
+
+      if (state.map) {
+        setTimeout(() => state.map.invalidateSize(), 150);
+        return;
+      }
+
+      if (!window.L) {
+        setMapStatus('No se pudo cargar el mapa. Puedes escribir latitud y longitud manualmente.');
+        return;
+      }
+
+      const initialLat = getNumberValue('latitude') || 40.4168;
+      const initialLng = getNumberValue('longitude') || -3.7038;
+      const initialPoint = [initialLat, initialLng];
+
+      try {
+        state.map = L.map('locationMap', {
+          scrollWheelZoom: true
+        }).setView(initialPoint, 6);
+      } catch (error) {
+        console.error('No se pudo inicializar Leaflet', error);
+        setMapStatus('No se pudo inicializar el mapa. Puedes escribir latitud y longitud manualmente.');
+        return;
+      }
+
+      const tileLayer = L.tileLayer(`https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=${CARTO_API_KEY}`, {
+        maxZoom: 19,
+        referrerPolicy: 'strict-origin-when-cross-origin',
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+      });
+
+      tileLayer.on('tileerror', () => {
+        setMapStatus('No se pudieron cargar las imagenes del mapa. Aun puedes escribir coordenadas o buscar un lugar.');
+      });
+
+      tileLayer.addTo(state.map);
+
+      state.marker = L.marker(initialPoint, { draggable: true }).addTo(state.map);
+      state.marker.on('dragend', () => {
+        const point = state.marker.getLatLng();
+        if (setCoordinates(point.lat, point.lng, { syncMap: false })) {
+          fillPlaceFromCoordinates(point.lat, point.lng);
+        }
+      });
+
+      state.map.on('click', (event) => {
+        if (setCoordinates(event.latlng.lat, event.latlng.lng)) {
+          fillPlaceFromCoordinates(event.latlng.lat, event.latlng.lng);
+        }
+      });
+
+      setMapStatus('Haz click en el mapa para elegir una posicion.');
+      setTimeout(() => state.map.invalidateSize(), 150);
+    }
+
+    function useBrowserLocation() {
+      if (!navigator.geolocation) {
+        setMapStatus('Tu navegador no permite obtener ubicacion. Puedes seleccionar el punto en el mapa.');
+        return;
+      }
+
+      setMapStatus('Solicitando ubicacion del navegador...');
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          if (setCoordinates(latitude, longitude, { zoom: 15 })) {
+            fillPlaceFromCoordinates(latitude, longitude);
+          }
+        },
+        () => {
+          setMapStatus('No se pudo obtener tu ubicacion. Selecciona el punto en el mapa.');
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 30000
+        }
+      );
+    }
+
+    function updateTypeUi(type) {
+      state.type = type;
+      const meta = contentMeta[type];
+
+      elements.typeButtons.forEach((button) => {
+        const active = button.dataset.type === type;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-pressed', String(active));
+      });
+
+      elements.fileInput.value = '';
+      elements.fileInput.accept = meta.accept;
+      elements.fileLabel.textContent = meta.fileLabel;
+      elements.fileHint.textContent = meta.fileHint;
+      elements.textField.classList.toggle('hidden', type !== 'texto');
+      elements.fileField.classList.toggle('hidden', false);
+      elements.preview.innerHTML = `
+        <div class="file-line">
+          <span class="file-icon">${meta.icon}</span>
+          <div><strong>${meta.label}</strong><br>${type === 'texto' ? 'Escribe texto o adjunta un documento.' : `Selecciona un archivo de ${meta.label.toLowerCase()}.`}</div>
+        </div>
+      `;
+      updateConditionalFields();
+      updateSummary();
+    }
+
+    function updateConditionalFields() {
+      $$('.conditional').forEach((node) => {
+        let visible = true;
+        const groupName = node.dataset.visibleIfGroup;
+        const selectId = node.dataset.visibleIfSelect;
+        const expectedValue = node.dataset.visibleIfValue;
+
+        if (groupName) {
+          visible = isGroupValueSelected(groupName, expectedValue);
+        }
+
+        if (selectId) {
+          visible = getValue(selectId) === expectedValue;
+        }
+
+        node.classList.toggle('hidden', !visible);
+      });
+
+      $$('.conditional.hidden').forEach((node) => {
+        Array.from(node.querySelectorAll('input, textarea, select')).forEach((field) => {
+          if (field.type === 'checkbox' || field.type === 'radio') {
+            field.checked = false;
+          } else {
+            field.value = '';
+          }
+        });
+      });
+    }
+
+    function updateSummary() {
+      const file = elements.fileInput.files[0];
+      const ficha = buildFicha();
+      const projectName = getValue('projectName') || 'Memoland';
+      const fileLabel = file ? file.name : state.type === 'texto' ? (getValue('textContent') ? 'Texto escrito en formulario' : 'Pendiente') : 'Pendiente';
+      const rows = [];
+
+      const addRow = (label, value, options = {}) => {
+        if (value === undefined || value === null) return;
+        const normalizedValue = Array.isArray(value) ? value.join(', ') : String(value).trim();
+        if (!normalizedValue) return;
+        rows.push([label, normalizedValue, options]);
+      };
+
+      addRow('Tipo de contenido', contentMeta[state.type].label);
+      addRow('Usuario', state.user?.username || state.user?.email || '');
+      addRow('Archivo / texto', fileLabel);
+      addRow('Texto escrito', getValue('textContent'), { wide: true });
+      addRow('Proyecto', projectName);
+      addRow('ID de proyecto', getValue('projectId'));
+      addRow('Icono', getValue('icon'));
+      addRow('Descripcion', ficha.description, { wide: true });
+      addRow('Ciudad', ficha.place.city);
+      addRow('Pais', ficha.place.country);
+      addRow('Latitud', ficha.place.latitude);
+      addRow('Longitud', ficha.place.longitude);
+      addRow('Tipo de hecho', ficha.eventTypes);
+      addRow('Lugar donde ocurrio', ficha.occurrencePlaces);
+      addRow('Otro lugar', ficha.occurrencePlaceOther);
+      addRow('Periodo', ficha.period);
+      addRow('Fuente', ficha.source, { wide: true });
+      addRow('Tiene reconocimiento', ficha.hasRecognition);
+      addRow('Actores del reconocimiento', ficha.recognitionActors);
+      addRow('Otro actor', ficha.recognitionActorOther);
+      addRow('Formas de reconocimiento', ficha.recognitionForms);
+      addRow('Otra forma', ficha.recognitionFormOther);
+      addRow('Acciones de represion', ficha.repressionActions);
+      addRow('Anios de trabajos forzados', ficha.forcedLaborYears);
+      addRow('Anios de prision', ficha.prisonYears);
+      addRow('Otra accion de represion', ficha.repressionActionOther);
+      addRow('Grupos reprimidos', ficha.repressedGroups);
+      addRow('Otro grupo reprimido', ficha.repressedGroupOther);
+      addRow('Victimas hombres', ficha.victimMenCount);
+      addRow('Victimas mujeres', ficha.victimWomenCount);
+      addRow('Victimas otro', ficha.victimOtherCount);
+      addRow('Nombres de victimas', ficha.victimNames, { wide: true });
+      addRow('Ocupacion de victimas', ficha.victimOccupation, { wide: true });
+      addRow('Argumentos de represion', ficha.repressionArguments);
+      addRow('Otro argumento', ficha.repressionArgumentOther);
+      addRow('Perpetradores', ficha.perpetrators);
+      addRow('Otro perpetrador', ficha.perpetratorOther);
+      addRow('Acciones de resistencia', ficha.resistanceActions);
+      addRow('Otra accion de resistencia', ficha.resistanceActionOther);
+      addRow('Contenidos de demanda', ficha.demandContents);
+      addRow('Otro contenido', ficha.demandContentOther);
+      addRow('Organizadores', ficha.organizerTypes);
+      addRow('Detalle de organizador', ficha.organizerTypeOther);
+      addRow('Numero de participantes', ficha.participantCount);
+      addRow('Nombres de participantes', ficha.participantNames, { wide: true });
+      addRow('Ocupacion de participantes', ficha.participantOccupation, { wide: true });
+
+      if (!rows.length) {
+        elements.summary.innerHTML = '<div class="summary-item summary-wide"><span>Revision</span><strong>Completa el formulario para ver aqui el resumen.</strong></div>';
+        return;
+      }
+
+      elements.summary.innerHTML = rows.map(([label, value, options]) => `
+        <div class="summary-item ${options?.wide ? 'summary-wide' : ''}">
+          <span>${escapeHtml(label)}</span>
+          <strong>${escapeHtml(value)}</strong>
+        </div>
+      `).join('');
+    }
+
+    async function login(event) {
+      event.preventDefault();
+      clearStatus(elements.loginStatus);
+      elements.loginButton.disabled = true;
+      elements.loginButton.textContent = 'Entrando...';
+
+      try {
+        const email = getValue('email');
+        const password = $('#password').value;
+
+        const loginResponse = await fetch(`${API_BASE_URL}/auth/loginUser`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+
+        const loginData = await loginResponse.json().catch(() => ({}));
+        if (!loginResponse.ok) {
+          throw new Error(loginData.message || 'No se pudo iniciar sesion.');
+        }
+
+        const token = loginData.token;
+        const userResponse = await fetch(`${API_BASE_URL}/auth/user/${encodeURIComponent(email)}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        const userData = await userResponse.json().catch(() => ({}));
+        if (!userResponse.ok) {
+          throw new Error(userData.message || 'Login correcto, pero no se pudo cargar el usuario.');
+        }
+
+        state.token = token;
+        state.user = normalizeUserPayload(userData);
+        localStorage.setItem('memolandUploadToken', token);
+        localStorage.setItem('memolandUploadUser', JSON.stringify(state.user));
+        updateSessionUi();
+        setStatus(elements.loginStatus, 'ok', 'Sesion iniciada correctamente.');
+      } catch (error) {
+        state.token = '';
+        state.user = null;
+        localStorage.removeItem('memolandUploadToken');
+        localStorage.removeItem('memolandUploadUser');
+        updateSessionUi();
+        setStatus(elements.loginStatus, 'bad', error.message || 'Error al iniciar sesion.');
+      } finally {
+        elements.loginButton.disabled = false;
+        elements.loginButton.textContent = 'Iniciar sesion';
+      }
+    }
+
+    function renderUploadReview() {
+      updateSummary();
+      elements.uploadReviewSummary.innerHTML = elements.summary.innerHTML;
+    }
+
+    function setReviewError(message = '') {
+      elements.uploadReviewError.textContent = message;
+      elements.uploadReviewError.classList.toggle('hidden', !message);
+    }
+
+    function openUploadReview(pendingUpload, errors = []) {
+      state.pendingUpload = pendingUpload;
+      state.reviewTrigger = document.activeElement;
+      renderUploadReview();
+      const hasErrors = errors.length > 0;
+      elements.uploadReviewNotice.textContent = hasErrors
+        ? 'Hay campos pendientes. Revisa el resumen y vuelve al formulario para completarlos.'
+        : 'Los campos obligatorios estan completos. Comprueba especialmente proyecto, archivo y ubicacion antes de confirmar.';
+      elements.uploadReviewNotice.classList.toggle('warning', hasErrors);
+      setReviewError(hasErrors ? `Falta completar o corregir:\n- ${errors.map((error) => error.message).join('\n- ')}` : '');
+      elements.confirmUploadButton.disabled = hasErrors;
+      elements.uploadReviewModal.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+      (hasErrors ? elements.cancelUploadReviewButton : elements.confirmUploadButton).focus();
+    }
+
+    function closeUploadReview() {
+      if (state.uploadInProgress) return;
+
+      elements.uploadReviewModal.classList.add('hidden');
+      document.body.style.overflow = '';
+      state.pendingUpload = null;
+      setReviewError('');
+      elements.uploadReviewNotice.classList.remove('warning');
+      elements.confirmUploadButton.disabled = false;
+      state.reviewTrigger?.focus?.();
+      state.reviewTrigger = null;
+    }
+
+    function requestUploadReview(event) {
+      event.preventDefault();
+      clearStatus(elements.uploadStatus);
+
+      const meta = contentMeta[state.type];
+      const file = elements.fileInput.files[0] || null;
+      const textContent = getValue('textContent');
+      const errors = validateUploadData(meta, file, textContent);
+      const payload = buildPayload();
+
+      if (errors.length) {
+        showUploadValidationErrors(errors);
+        openUploadReview({ meta, file, textContent, payload, token: state.token, contentType: state.type }, errors);
+        return;
+      }
+
+      const validPayloadCoordinates = Number.isFinite(payload.latitude)
+        && Number.isFinite(payload.longitude)
+        && payload.latitude >= -90
+        && payload.latitude <= 90
+        && payload.longitude >= -180
+        && payload.longitude <= 180;
+
+      if (!validPayloadCoordinates) {
+        const coordinateErrors = [{ message: 'No se puede preparar la subida sin una ubicacion valida.', fieldId: 'latitude' }];
+        showUploadValidationErrors(coordinateErrors);
+        openUploadReview({ meta, file, textContent, payload, token: state.token, contentType: state.type }, coordinateErrors);
+        return;
+      }
+
+      openUploadReview({ meta, file, textContent, payload, token: state.token, contentType: state.type });
+    }
+
+    async function submitConfirmedUpload() {
+      if (!state.pendingUpload || state.uploadInProgress) return;
+
+      const { meta, file, textContent, payload, token, contentType } = state.pendingUpload;
+      const validPayloadCoordinates = Number.isFinite(payload.latitude)
+        && Number.isFinite(payload.longitude)
+        && payload.latitude >= -90
+        && payload.latitude <= 90
+        && payload.longitude >= -180
+        && payload.longitude <= 180;
+
+      if (!validPayloadCoordinates) {
+        setReviewError('La ubicacion no es valida. Vuelve al formulario y selecciona un punto en el mapa.');
+        return;
+      }
+
+      state.uploadInProgress = true;
+      setReviewError('');
+      elements.confirmUploadButton.disabled = true;
+      elements.cancelUploadReviewButton.disabled = true;
+      elements.closeUploadReviewButton.disabled = true;
+      elements.confirmUploadButton.textContent = 'Subiendo...';
+      elements.uploadButton.disabled = true;
+
+      try {
+        const formData = new FormData();
+        Object.entries(payload).forEach(([key, value]) => appendFormValue(formData, key, value));
+
+        if (contentType === 'texto' && textContent) {
+          appendFormValue(formData, 'textContent', textContent);
+        }
+
+        if (file) {
+          formData.append(meta.field, file, file.name);
+        }
+
+        const response = await fetch(`${API_BASE_URL}${meta.endpoint}`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData
+        });
+
+        if (!response.ok) {
+          throw new Error(`La API rechazo la solicitud (estado ${response.status}).`);
+        }
+
+        state.uploadInProgress = false;
+        closeUploadReview();
+        clearForm();
+        selectDefaultProject();
+        setStatus(elements.uploadStatus, 'ok', 'Contenido subido correctamente.');
+        window.alert('Contenido subido correctamente.');
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Error desconocido';
+        setReviewError(`No se pudo subir el contenido. ${message}`);
+        setStatus(elements.uploadStatus, 'bad', 'No se pudo subir el contenido. Revisa el mensaje del formulario e intentalo de nuevo.');
+      } finally {
+        state.uploadInProgress = false;
+        elements.confirmUploadButton.disabled = false;
+        elements.cancelUploadReviewButton.disabled = false;
+        elements.closeUploadReviewButton.disabled = false;
+        elements.confirmUploadButton.textContent = 'Confirmar y subir';
+        elements.uploadButton.disabled = !state.token;
+        elements.uploadButton.textContent = 'Subir contenido';
+        updateSummary();
+      }
+    }
+
+    function logout() {
+      closeUploadReview();
+      state.token = '';
+      state.user = null;
+      localStorage.removeItem('memolandUploadToken');
+      localStorage.removeItem('memolandUploadUser');
+      updateSessionUi();
+      setStatus(elements.loginStatus, 'warn', 'Sesion cerrada.');
+    }
+
+    function clearForm() {
+      if (!elements.uploadReviewModal.classList.contains('hidden')) closeUploadReview();
+      state.reverseGeocodeRequestId += 1;
+      elements.uploadForm.reset();
+      selectIcon(DEFAULT_MAP_ICON);
+      clearStatus(elements.uploadStatus);
+      updateConditionalFields();
+      updateTypeUi(state.type);
+      if (state.map && state.marker) {
+        setCoordinates(40.4168, -3.7038, { zoom: 6 });
+        $('#latitude').value = '';
+        $('#longitude').value = '';
+        setMapStatus('Haz click en el mapa para elegir una posicion.');
+      }
+    }
+
+    elements.loginForm.addEventListener('submit', login);
+    elements.uploadForm.addEventListener('submit', requestUploadReview);
+    elements.confirmUploadButton.addEventListener('click', submitConfirmedUpload);
+    elements.cancelUploadReviewButton.addEventListener('click', closeUploadReview);
+    elements.closeUploadReviewButton.addEventListener('click', closeUploadReview);
+    elements.uploadReviewModal.addEventListener('click', (event) => {
+      if (event.target === elements.uploadReviewModal) closeUploadReview();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && !elements.uploadReviewModal.classList.contains('hidden')) {
+        closeUploadReview();
+      }
+    });
+    elements.logoutButton.addEventListener('click', logout);
+    elements.logoutPanelButton.addEventListener('click', logout);
+    elements.clearButton.addEventListener('click', clearForm);
+    elements.useLocationButton.addEventListener('click', useBrowserLocation);
+    elements.placeSearchButton.addEventListener('click', searchPlaces);
+    elements.placeSearchInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        searchPlaces();
+      }
+    });
+    elements.placeSearchInput.addEventListener('input', () => {
+      window.clearTimeout(state.placeSearchTimer);
+      state.placeSearchTimer = window.setTimeout(searchPlaces, 650);
+    });
+    elements.placeResults.addEventListener('click', (event) => {
+      const button = event.target.closest('.place-result');
+      if (!button) return;
+      selectPlaceResult(state.placeResults[Number(button.dataset.placeIndex)]);
+    });
+    elements.projectSelect.addEventListener('change', updateProjectFieldsFromSelect);
+    elements.iconGrid.addEventListener('click', (event) => {
+      const button = event.target.closest('.icon-option');
+      if (button) selectIcon(button.dataset.icon);
+    });
+    $('#latitude').addEventListener('change', () => {
+      if (getValue('latitude') && getValue('longitude')) {
+        const latitude = getValue('latitude');
+        const longitude = getValue('longitude');
+        if (setCoordinates(latitude, longitude)) fillPlaceFromCoordinates(latitude, longitude);
+      }
+    });
+    $('#longitude').addEventListener('change', () => {
+      if (getValue('latitude') && getValue('longitude')) {
+        const latitude = getValue('latitude');
+        const longitude = getValue('longitude');
+        if (setCoordinates(latitude, longitude)) fillPlaceFromCoordinates(latitude, longitude);
+      }
+    });
+    elements.typeButtons.forEach((button) => {
+      button.addEventListener('click', () => updateTypeUi(button.dataset.type));
+    });
+    elements.uploadForm.addEventListener('input', () => {
+      updateConditionalFields();
+      updateSummary();
+    });
+    elements.uploadForm.addEventListener('change', () => {
+      updateConditionalFields();
+      updateSummary();
+    });
+
+    function startUploadPage() {
+      updateSessionUi();
+      renderIconSelector();
+      selectIcon(DEFAULT_MAP_ICON);
+      updateConditionalFields();
+      updateTypeUi(state.type);
+      initLocationMap();
+      loadProjects();
+    }
+
+    function startWhenLeafletIsReady(attempt = 0) {
+      if (window.L || attempt >= 20) {
+        startUploadPage();
+        return;
+      }
+
+      setTimeout(() => startWhenLeafletIsReady(attempt + 1), 150);
+    }
+
+    startWhenLeafletIsReady();
+  </script>
+</body>
+</html>
