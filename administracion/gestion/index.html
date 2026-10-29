@@ -838,6 +838,65 @@
     }
 
     @media (max-width: 560px) {
+      .shell {
+        width: min(100% - 20px, 1680px);
+        padding-top: 14px;
+      }
+
+      .partner-logos {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        justify-items: center;
+        gap: 18px 10px;
+        padding-inline: 10px;
+      }
+
+      .partner-logos img,
+      .partner-logos .logo-uam,
+      .partner-logos .logo-ministerio {
+        width: 100%;
+        max-width: 150px;
+        max-height: 70px;
+      }
+
+      .partner-logos .logo-foro {
+        width: 92px;
+        height: 92px;
+        max-width: 92px;
+        max-height: 92px;
+      }
+
+      .grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .editor-backdrop {
+        padding: 8px;
+      }
+
+      .editor-dialog {
+        max-height: calc(100vh - 16px);
+        max-height: calc(100dvh - 16px);
+      }
+
+      .editor-header {
+        align-items: flex-start;
+        padding: 12px;
+      }
+
+      .editor-form,
+      .delete-dialog-body {
+        padding: 12px;
+      }
+
+      .editor-actions {
+        flex-direction: column-reverse;
+      }
+
+      .editor-actions .button {
+        width: 100%;
+      }
+
       .delete-preview {
         grid-template-columns: 1fr;
       }

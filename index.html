@@ -68,6 +68,8 @@
       grid-template-rows: var(--header-height) minmax(0, 1fr) auto;
       height: 100vh;
       min-height: 100vh;
+      height: 100dvh;
+      min-height: 100dvh;
     }
 
     .map-app.sidebar-hidden {
@@ -621,6 +623,11 @@
     .floating-filter.material-filter {
       flex-basis: 130px;
       min-width: 110px;
+    }
+
+    .floating-filter.user-filter {
+      flex-basis: 175px;
+      min-width: 145px;
     }
 
     .floating-filter select,
@@ -1238,6 +1245,7 @@
       .floating-filter,
       .floating-filter.subcategory-filter,
       .floating-filter.material-filter,
+      .floating-filter.user-filter,
       .floating-location,
       .floating-radius {
         width: auto;
@@ -1262,6 +1270,12 @@
 
       .map-pill-stack {
         justify-content: center;
+      }
+
+      .map-action-button,
+      .floating-filter select,
+      .floating-filter input {
+        min-height: 44px;
       }
     }
 
@@ -1329,6 +1343,21 @@
 
       .content-grid-body {
         grid-template-columns: 1fr;
+      }
+
+      .map-wrap {
+        min-height: 76vh;
+        min-height: 76dvh;
+      }
+
+      .map-filter-toolbar {
+        gap: 6px;
+      }
+
+      .floating-filter select,
+      .floating-filter input,
+      .map-action-button {
+        font-size: 12px;
       }
     }
   </style>
@@ -1411,6 +1440,12 @@
               <label class="visually-hidden" for="mediaTypeFilters">Tipo de material</label>
               <select id="mediaTypeFilters" aria-label="Tipo de material">
                 <option value="">Todos</option>
+              </select>
+            </div>
+            <div class="floating-filter user-filter">
+              <label class="visually-hidden" for="userFilters">Usuario que subio el contenido</label>
+              <select id="userFilters" aria-label="Usuario que subio el contenido">
+                <option value="">Todos los usuarios</option>
               </select>
             </div>
             <div class="floating-filter floating-location">
@@ -1566,6 +1601,7 @@
       userLocationLayer: null,
       activeEventType: '',
       activeMediaType: '',
+      activeUsername: '',
       activeSubcategory: '',
       locationFilter: null,
       locationSuggestions: [],
@@ -1584,6 +1620,7 @@
       connectionStatus: $('#connectionStatus'),
       eventFilters: $('#eventFilters'),
       mediaTypeFilters: $('#mediaTypeFilters'),
+      userFilters: $('#userFilters'),
       subcategoryPanel: $('#subcategoryPanel'),
       subcategoryFilters: $('#subcategoryFilters'),
       locationQuery: $('#locationQuery'),
@@ -1852,6 +1889,21 @@
       return media.__mediaType === state.activeMediaType;
     }
 
+    function getMediaUsername(media) {
+      return String(
+        media?.username
+        || media?.userName
+        || media?.user?.username
+        || media?.createdBy?.username
+        || ''
+      ).trim();
+    }
+
+    function mediaMatchesUserFilter(media) {
+      if (!state.activeUsername) return true;
+      return normalizeText(getMediaUsername(media)) === normalizeText(state.activeUsername);
+    }
+
     function mediaMatchesSubcategory(media) {
       if (!state.activeSubcategory) return true;
       return getMarkerIconId(media) === state.activeSubcategory;
@@ -1866,6 +1918,7 @@
       return getAllContents().filter((item) =>
         mediaMatchesEventFilter(item) &&
         mediaMatchesTypeFilter(item) &&
+        mediaMatchesUserFilter(item) &&
         mediaMatchesSubcategory(item) &&
         mediaMatchesLocationFilter(item)
       );
@@ -1983,6 +2036,7 @@
       const parts = [
         state.activeEventType || 'Todos los contenidos',
         state.activeMediaType ? MEDIA_TYPES[state.activeMediaType]?.label : '',
+        state.activeUsername ? `Usuario: ${state.activeUsername}` : '',
         state.activeSubcategory ? getSubcategoryLabel(state.activeSubcategory) : '',
         state.locationFilter ? state.locationFilter.label : ''
       ].filter(Boolean);
@@ -2009,6 +2063,35 @@
       elements.mediaTypeFilters.value = state.activeMediaType;
     }
 
+    function renderUserFilters() {
+      const usersByNormalizedName = new Map();
+
+      getAllContents().forEach((item) => {
+        const username = getMediaUsername(item);
+        if (!username) return;
+
+        const key = normalizeText(username);
+        const current = usersByNormalizedName.get(key);
+        usersByNormalizedName.set(key, {
+          label: current?.label || username,
+          count: (current?.count || 0) + 1
+        });
+      });
+
+      const users = Array.from(usersByNormalizedName.values())
+        .sort((first, second) => first.label.localeCompare(second.label, 'es', { sensitivity: 'base' }));
+
+      if (state.activeUsername && !users.some((user) => normalizeText(user.label) === normalizeText(state.activeUsername))) {
+        state.activeUsername = '';
+      }
+
+      elements.userFilters.innerHTML = `
+        <option value="">Todos los usuarios</option>
+        ${users.map((user) => `<option value="${escapeHtml(user.label)}">${escapeHtml(user.label)} (${user.count})</option>`).join('')}
+      `;
+      elements.userFilters.value = state.activeUsername;
+    }
+
     function renderSubcategoryFilters() {
       const options = SUBCATEGORY_OPTIONS[state.activeEventType] || [];
       elements.subcategoryFilters.disabled = !options.length;
@@ -2022,6 +2105,7 @@
     function renderFilters() {
       renderEventFilters();
       renderMediaTypeFilters();
+      renderUserFilters();
       renderSubcategoryFilters();
       renderMarkers();
       if (state.isGridOpen) renderContentGrid();
@@ -2443,6 +2527,7 @@
     function clearAllFilters() {
       state.activeEventType = '';
       state.activeMediaType = '';
+      state.activeUsername = '';
       state.activeSubcategory = '';
       state.locationFilter = null;
       state.locationSuggestions = [];
@@ -2675,6 +2760,12 @@
       fitVisibleMarkers();
     });
 
+    elements.userFilters.addEventListener('change', () => {
+      state.activeUsername = elements.userFilters.value;
+      renderFilters();
+      fitVisibleMarkers();
+    });
+
     elements.subcategoryFilters.addEventListener('change', () => {
       state.activeSubcategory = elements.subcategoryFilters.value;
       renderFilters();
@@ -2782,6 +2873,7 @@
     initMap();
     renderEventFilters();
     renderMediaTypeFilters();
+    renderUserFilters();
     renderSubcategoryFilters();
     renderLegend();
     renderPickingPointState();
