@@ -599,6 +599,10 @@
       pointer-events: none;
     }
 
+    .map-overlay-center.filters-hidden {
+      display: none;
+    }
+
     .map-filter-toolbar {
       display: flex;
       justify-content: center;
@@ -1422,7 +1426,7 @@
       <div id="map" aria-label="Mapa Memoland"></div>
       <div class="map-topbar">
         <div id="mapZoomSlot"></div>
-        <div class="map-overlay-center">
+        <div id="mapOverlayCenter" class="map-overlay-center">
           <div class="map-filter-toolbar" aria-label="Filtros del mapa">
             <div class="floating-filter">
               <label class="visually-hidden" for="eventFilters">Tipo de testimonio</label>
@@ -1473,6 +1477,7 @@
           </div>
         </div>
         <div class="map-actions">
+          <button id="toggleFiltersButton" class="map-action-button" type="button" aria-controls="mapOverlayCenter" aria-expanded="true">Ocultar filtros</button>
           <button id="showSidebarButton" class="map-action-button show-sidebar-button" type="button">Mostrar panel</button>
           <button id="toggleGridButton" class="map-action-button" type="button">Galería de testimonios</button>
         </div>
@@ -1607,6 +1612,7 @@
       locationSuggestions: [],
       locationTimer: null,
       isPickingPoint: false,
+      areFiltersHidden: false,
       isSidebarHidden: true,
       isGridOpen: false,
       isGridFullscreen: false,
@@ -1632,6 +1638,7 @@
       locateButton: $('#locateButton'),
       pickPointButton: $('#pickPointButton'),
       mapElement: $('#map'),
+      mapOverlayCenter: $('#mapOverlayCenter'),
       mapZoomSlot: $('#mapZoomSlot'),
       iconSize: $('#iconSize'),
       refreshButton: $('#refreshButton'),
@@ -1639,6 +1646,7 @@
       fitButton: $('#fitButton'),
       toggleSidebarButton: $('#toggleSidebarButton'),
       showSidebarButton: $('#showSidebarButton'),
+      toggleFiltersButton: $('#toggleFiltersButton'),
       toggleGridButton: $('#toggleGridButton'),
       contentGridPanel: $('#contentGridPanel'),
       contentGridTitle: $('#contentGridTitle'),
@@ -2389,6 +2397,14 @@
       setTimeout(() => state.map?.invalidateSize(), 180);
     }
 
+    function setFiltersHidden(areHidden) {
+      state.areFiltersHidden = Boolean(areHidden);
+      elements.mapOverlayCenter.classList.toggle('filters-hidden', state.areFiltersHidden);
+      elements.toggleFiltersButton.textContent = state.areFiltersHidden ? 'Mostrar filtros' : 'Ocultar filtros';
+      elements.toggleFiltersButton.setAttribute('aria-expanded', String(!state.areFiltersHidden));
+      setTimeout(() => state.map?.invalidateSize(), 180);
+    }
+
     async function searchLocationCandidates(query) {
       const url = new URL('https://photon.komoot.io/api/');
       url.searchParams.set('q', query);
@@ -2805,6 +2821,7 @@
     elements.fitButton.addEventListener('click', fitVisibleMarkers);
     elements.toggleSidebarButton.addEventListener('click', toggleSidebar);
     elements.showSidebarButton.addEventListener('click', toggleSidebar);
+    elements.toggleFiltersButton.addEventListener('click', () => setFiltersHidden(!state.areFiltersHidden));
     elements.toggleGridButton.addEventListener('click', () => setGridOpen(!state.isGridOpen));
     elements.gridFullscreenButton.addEventListener('click', () => setGridFullscreen(!state.isGridFullscreen));
     elements.closeGridButton.addEventListener('click', () => setGridOpen(false));
@@ -2871,6 +2888,7 @@
     });
 
     initMap();
+    setFiltersHidden(false);
     renderEventFilters();
     renderMediaTypeFilters();
     renderUserFilters();
