@@ -1364,6 +1364,69 @@
         font-size: 12px;
       }
     }
+
+    .contribution-card {
+      grid-column: 1 / -1;
+    }
+
+    .contribution-badge {
+      display: inline-flex;
+      width: fit-content;
+      padding: 5px 9px;
+      border-radius: 999px;
+      background: #e8f7f6;
+      color: #08736f;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    .contribution-ficha,
+    .contribution-group {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #e5e7eb;
+    }
+
+    .contribution-ficha > h3,
+    .contribution-group > h3,
+    .contribution-attachment > h4 {
+      margin: 0;
+    }
+
+    .contribution-attachment-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+    }
+
+    .contribution-attachment {
+      min-width: 0;
+      display: grid;
+      align-content: start;
+      gap: 8px;
+      padding: 10px;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      background: #fff;
+    }
+
+    .contribution-text {
+      padding: 12px;
+      max-height: 260px;
+      overflow: auto;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    @media (max-width: 760px) {
+      .contribution-attachment-grid {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
@@ -1537,14 +1600,656 @@
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script>
-    const API_BASE_URL = 'https://www.vocesterritorios.com/apimemoland';
-    const ENDPOINTS = {
-      photos: `${API_BASE_URL}/photo/getAllPhotos`,
-      videos: `${API_BASE_URL}/video/getAllVideos`,
-      texts: `${API_BASE_URL}/text/getAllTexts`,
-      audios: `${API_BASE_URL}/audio/getAllAudios`
+  <script data-memoland-module="api-client">
+(function initMemolandApiClient(root, factory) {
+  const api = factory();
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  if (root) root.MemolandApiClient = api;
+}(typeof globalThis !== 'undefined' ? globalThis : this, function createMemolandApiClient() {
+  'use strict';
+
+  const DEFAULT_API_BASE_URL = 'https://www.vocesterritorios.com/apimemoland';
+  const SOURCES = Object.freeze([
+    { key: 'photo', path: '/photo/getAllPhotos', responseKey: 'photos', legacy: true },
+    { key: 'video', path: '/video/getAllVideos', responseKey: 'videos', legacy: true },
+    { key: 'audio', path: '/audio/getAllAudios', responseKey: 'audios', legacy: true },
+    { key: 'text', path: '/text/getAllTexts', responseKey: 'texts', legacy: true },
+    { key: 'contributions', path: '/contributions', responseKey: 'contributions', legacy: false }
+  ]);
+
+  function resolveApiBaseUrl(value) {
+    const configured = String(value || '').trim();
+    return (configured || DEFAULT_API_BASE_URL).replace(/\/+$/, '');
+  }
+
+  function readCollection(payload, responseKey) {
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.[responseKey])) return payload[responseKey];
+    if (Array.isArray(payload?.data)) return payload.data;
+    if (Array.isArray(payload?.result)) return payload.result;
+    return [];
+  }
+
+  async function requestJson(url, fetchImpl) {
+    const response = await fetchImpl(url, { headers: { Accept: 'application/json' } });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const error = new Error(payload?.message || payload?.error || `Error HTTP ${response.status}`);
+      error.status = response.status;
+      throw error;
+    }
+    return payload;
+  }
+
+  async function fetchContentSources(options = {}) {
+    const fetchImpl = options.fetchImpl || (typeof fetch === 'function' ? fetch.bind(globalThis) : null);
+    if (!fetchImpl) throw new Error('No existe una implementacion de fetch disponible.');
+
+    const apiBaseUrl = resolveApiBaseUrl(options.apiBaseUrl);
+    const settled = await Promise.allSettled(
+      SOURCES.map((source) => requestJson(`${apiBaseUrl}${source.path}`, fetchImpl))
+    );
+    const legacy = { photo: [], video: [], audio: [], text: [] };
+    let contributions = [];
+    const errors = [];
+    const loadedSources = [];
+
+    settled.forEach((result, index) => {
+      const source = SOURCES[index];
+      if (result.status === 'rejected') {
+        errors.push({
+          source: source.key,
+          path: source.path,
+          status: result.reason?.status ?? null,
+          message: result.reason?.message || 'No se pudo cargar esta fuente.'
+        });
+        return;
+      }
+
+      const records = readCollection(result.value, source.responseKey);
+      loadedSources.push(source.key);
+      if (source.legacy) legacy[source.key] = records;
+      else contributions = records;
+    });
+
+    return {
+      apiBaseUrl,
+      legacy,
+      contributions,
+      errors,
+      loadedSources,
+      partial: errors.length > 0
     };
+  }
+
+  return {
+    DEFAULT_API_BASE_URL,
+    SOURCES,
+    resolveApiBaseUrl,
+    readCollection,
+    requestJson,
+    fetchContentSources
+  };
+}));
+  </script>
+  <script data-memoland-module="content-normalizer">
+(function initMemolandContent(root, factory) {
+  const api = factory();
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  if (root) root.MemolandContent = api;
+}(typeof globalThis !== 'undefined' ? globalThis : this, function createMemolandContent() {
+  'use strict';
+
+  const LEGACY_MEDIA_TYPES = Object.freeze(['photo', 'video', 'audio', 'text']);
+  const VALID_MARKER_ICONS = new Set([
+    'represion_condena',
+    'represion_detencion_juicio',
+    'represion_expropiacion',
+    'represion_exprociacion',
+    'represion_fosa_comun',
+    'represion_muerte',
+    'resistencia_accion_directa',
+    'resistencia_accion_politica',
+    'resistencia_exhumacion',
+    'resistencia_homenaje_reconocimiento',
+    'resistencia_movilizacion_social'
+  ]);
+
+  function parseMaybeJson(value, fallback = null) {
+    if (value === undefined || value === null || value === '') return fallback;
+    if (typeof value !== 'string') return value;
+    try {
+      return JSON.parse(value);
+    } catch (_error) {
+      return fallback;
+    }
+  }
+
+  function asArray(value) {
+    const parsed = parseMaybeJson(value, value);
+    if (Array.isArray(parsed)) return parsed.flatMap(asArray).filter(Boolean);
+    if (typeof parsed === 'string' && parsed.trim()) {
+      return parsed.split(',').map((item) => item.trim()).filter(Boolean);
+    }
+    return parsed === undefined || parsed === null || parsed === '' ? [] : [String(parsed)];
+  }
+
+  function toCoordinate(value, limit) {
+    if (value === '' || value === null || value === undefined) return null;
+    const numeric = Number(value);
+    return Number.isFinite(numeric) && Math.abs(numeric) <= limit ? numeric : null;
+  }
+
+  function getRecordId(record, fallback) {
+    return record?.id ?? record?._id ?? record?.public_id ?? fallback;
+  }
+
+  function readFicha(record = {}) {
+    const candidates = [record.fichaDescriptiva, record.formData, record.form];
+    for (const candidate of candidates) {
+      const parsed = parseMaybeJson(candidate, null);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+    }
+    return {};
+  }
+
+  function normalizeMarkerIcon(value) {
+    const filename = String(value || '').trim().split('/').pop().replace(/\.png(?:[?#].*)?$/i, '');
+    if (!VALID_MARKER_ICONS.has(filename)) return null;
+    return filename === 'represion_exprociacion' ? 'represion_expropiacion' : filename;
+  }
+
+  function getManualMarkerIcon(record = {}, ficha = readFicha(record)) {
+    const candidates = [
+      ficha.markerIcon,
+      ficha.mapIcon,
+      record.markerIcon,
+      record.mapIcon,
+      record.icon,
+      record.iconName
+    ];
+    for (const candidate of candidates) {
+      const normalized = normalizeMarkerIcon(candidate);
+      if (normalized) return normalized;
+    }
+    return null;
+  }
+
+  function getLocation(record = {}, ficha = readFicha(record)) {
+    const place = ficha.place && typeof ficha.place === 'object' ? ficha.place : {};
+    const latitude = toCoordinate(record.latitude ?? record.fichaPlaceLatitude ?? place.latitude, 90);
+    const longitude = toCoordinate(record.longitude ?? record.fichaPlaceLongitude ?? place.longitude, 180);
+    const city = record.city || record.fichaPlaceCity || place.city || '';
+    const country = record.country || record.fichaPlaceCountry || place.country || '';
+    return {
+      label: record.location || record.ubicacion || asArray(ficha.occurrencePlaces).join(', ') || [city, country].filter(Boolean).join(', '),
+      city,
+      country,
+      latitude,
+      longitude,
+      hasCoordinates: latitude !== null && longitude !== null
+    };
+  }
+
+  function attachmentFromRecord(record = {}, type, fallbackId) {
+    const id = getRecordId(record, fallbackId);
+    const secureUrl = typeof record.secure_url === 'string' ? record.secure_url.trim() : '';
+    const fallbackUrl = typeof record.url === 'string' ? record.url.trim() : '';
+    const isText = type === 'text';
+    const textContent = record.textContent || record.content || '';
+    const documentUrl = secureUrl || (record.public_id && fallbackUrl) || '';
+    const url = isText ? (documentUrl || null) : (secureUrl || fallbackUrl || null);
+    const kind = isText && documentUrl ? 'document' : type;
+    return {
+      key: `${type}:${id}`,
+      id,
+      type,
+      kind,
+      contributionId: record.contributionId ?? null,
+      title: record.title || record.name || '',
+      description: record.description || '',
+      publicId: record.public_id || null,
+      secureUrl: secureUrl || null,
+      url,
+      textContent,
+      hasRemoteFile: Boolean(url),
+      unavailable: isText ? !url && !String(textContent).trim() : !url,
+      raw: record
+    };
+  }
+
+  function normalizeLegacyContent(record = {}, type, index = 0) {
+    if (!LEGACY_MEDIA_TYPES.includes(type)) throw new Error(`Tipo legacy no soportado: ${type}`);
+    const id = getRecordId(record, index);
+    const fichaDescriptiva = readFicha(record);
+    const location = getLocation(record, fichaDescriptiva);
+    const attachment = attachmentFromRecord(record, type, id);
+    return {
+      ...record,
+      key: `legacy:${type}:${id}`,
+      id,
+      origin: 'legacy',
+      contributionId: null,
+      legacyMediaType: type,
+      __mediaType: type,
+      mediaTypes: [type],
+      username: record.username || record.userName || record.user?.username || '',
+      userId: record.userId ?? null,
+      projectId: record.projectId ?? null,
+      projectName: record.projectName || '',
+      title: record.title || record.name || fichaDescriptiva.title || '',
+      description: record.description || fichaDescriptiva.description || '',
+      date: record.date || record.createdAt || record.updatedAt || null,
+      locationLabel: location.label,
+      location,
+      city: location.city,
+      country: location.country,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      markerIconId: getManualMarkerIcon(record, fichaDescriptiva),
+      formSchema: record.formSchema || 'ficha_descriptiva_memoland_v1',
+      fichaDescriptiva,
+      attachments: [attachment],
+      capabilities: {
+        view: true,
+        editIndividual: true,
+        deleteIndividual: true,
+        editShared: false,
+        deleteEntity: false
+      },
+      raw: record
+    };
+  }
+
+  function normalizeContribution(contribution = {}, index = 0) {
+    const id = getRecordId(contribution, index);
+    const fichaDescriptiva = readFicha(contribution);
+    const location = getLocation(contribution, fichaDescriptiva);
+    const attachmentGroups = [
+      ['photos', 'photo'],
+      ['videos', 'video'],
+      ['audios', 'audio'],
+      ['texts', 'text']
+    ];
+    const attachments = attachmentGroups.flatMap(([field, type]) => (
+      Array.isArray(contribution[field])
+        ? contribution[field].map((record, attachmentIndex) => attachmentFromRecord(record, type, `${id}-${attachmentIndex}`))
+        : []
+    ));
+    const mediaTypes = [...new Set(attachments.map((attachment) => attachment.type))];
+    return {
+      ...contribution,
+      key: `contribution:${id}`,
+      id,
+      origin: 'contribution',
+      contributionId: id,
+      __mediaType: 'contribution',
+      mediaTypes,
+      username: contribution.username || '',
+      userId: contribution.userId ?? null,
+      projectId: contribution.projectId ?? null,
+      projectName: contribution.projectName || '',
+      title: contribution.title || fichaDescriptiva.title || fichaDescriptiva.description || '',
+      description: contribution.description || fichaDescriptiva.description || '',
+      date: contribution.date || contribution.createdAt || contribution.updatedAt || null,
+      locationLabel: location.label,
+      location,
+      city: location.city,
+      country: location.country,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      markerIconId: getManualMarkerIcon(contribution, fichaDescriptiva),
+      formSchema: contribution.formSchema || 'ficha_descriptiva_memoland_v1',
+      fichaDescriptiva,
+      attachments,
+      capabilities: {
+        view: true,
+        editIndividual: false,
+        deleteIndividual: false,
+        editShared: true,
+        deleteEntity: true,
+        addAttachment: true,
+        deleteAttachment: true
+      },
+      raw: contribution
+    };
+  }
+
+  function isHistoricalRecord(record) {
+    return record?.contributionId === null || record?.contributionId === undefined;
+  }
+
+  function filterHistoricalRecords(records = []) {
+    return (Array.isArray(records) ? records : []).filter(isHistoricalRecord);
+  }
+
+  function normalizeContentSources({ legacy = {}, contributions = [] } = {}) {
+    const entities = [];
+    LEGACY_MEDIA_TYPES.forEach((type) => {
+      filterHistoricalRecords(legacy[type]).forEach((record, index) => {
+        entities.push(normalizeLegacyContent(record, type, index));
+      });
+    });
+    (Array.isArray(contributions) ? contributions : []).forEach((record, index) => {
+      entities.push(normalizeContribution(record, index));
+    });
+    return entities;
+  }
+
+  function normalizeText(value) {
+    return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+  }
+
+  function getEntityEventTypes(entity = {}) {
+    const ficha = entity.fichaDescriptiva || readFicha(entity);
+    return asArray(entity.fichaEventTypes || ficha.eventTypes || entity.eventTypes || entity.category || entity.accionObservada);
+  }
+
+  function entityMatchesMediaType(entity, mediaType) {
+    if (!mediaType) return true;
+    return Array.isArray(entity?.mediaTypes) && entity.mediaTypes.includes(mediaType);
+  }
+
+  function entityMatchesEventFilter(entity, eventType) {
+    if (!eventType) return true;
+    const expected = normalizeText(eventType);
+    return getEntityEventTypes(entity).some((value) => normalizeText(value) === expected);
+  }
+
+  function getDistanceKm(first, second) {
+    const values = [first?.latitude, first?.longitude, second?.latitude, second?.longitude];
+    if (values.some((value) => value === null || value === undefined || value === '')) return Infinity;
+    const [lat1, lon1, lat2, lon2] = values.map(Number);
+    if (![lat1, lon1, lat2, lon2].every(Number.isFinite)) return Infinity;
+    const radiusKm = 6371;
+    const latitudeDistance = ((lat2 - lat1) * Math.PI) / 180;
+    const longitudeDistance = ((lon2 - lon1) * Math.PI) / 180;
+    const a = Math.sin(latitudeDistance / 2) ** 2 +
+      Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(longitudeDistance / 2) ** 2;
+    return radiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  function entityMatchesDistanceFilter(entity, locationFilter) {
+    if (!locationFilter) return true;
+    return getDistanceKm(entity.location, locationFilter.coordinate) <= Number(locationFilter.radiusKm);
+  }
+
+  function groupEntitiesByCoordinate(entities = []) {
+    const groups = new Map();
+    entities.forEach((entity) => {
+      const latitude = toCoordinate(entity?.location?.latitude ?? entity?.latitude, 90);
+      const longitude = toCoordinate(entity?.location?.longitude ?? entity?.longitude, 180);
+      if (latitude === null || longitude === null) return;
+      const coordinateKey = `${latitude.toFixed(6)},${longitude.toFixed(6)}`;
+      if (!groups.has(coordinateKey)) {
+        groups.set(coordinateKey, {
+          key: `coordinate:${coordinateKey}`,
+          latitude,
+          longitude,
+          entities: []
+        });
+      }
+      groups.get(coordinateKey).entities.push(entity);
+    });
+    return [...groups.values()];
+  }
+
+  return {
+    LEGACY_MEDIA_TYPES,
+    VALID_MARKER_ICONS,
+    parseMaybeJson,
+    asArray,
+    toCoordinate,
+    readFicha,
+    normalizeMarkerIcon,
+    getManualMarkerIcon,
+    getLocation,
+    attachmentFromRecord,
+    normalizeLegacyContent,
+    normalizeContribution,
+    isHistoricalRecord,
+    filterHistoricalRecords,
+    normalizeContentSources,
+    normalizeText,
+    getEntityEventTypes,
+    entityMatchesMediaType,
+    entityMatchesEventFilter,
+    getDistanceKm,
+    entityMatchesDistanceFilter,
+    groupEntitiesByCoordinate
+  };
+}));
+  </script>
+  <script data-memoland-module="contribution-view">
+(function initMemolandContributionView(root, factory) {
+  const api = factory();
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  if (root) root.MemolandContributionView = api;
+}(typeof globalThis !== 'undefined' ? globalThis : this, function createMemolandContributionView() {
+  'use strict';
+
+  const FICHA_LABELS = Object.freeze({
+    description: 'Descripcion del evento',
+    eventTypes: 'Tipo de evento',
+    occurrencePlaces: 'Donde ocurre',
+    occurrencePlaceOther: 'Otro lugar',
+    period: 'Periodo',
+    source: 'Fuente',
+    hasRecognition: 'Tiene homenaje o reconocimiento',
+    recognitionActors: 'Reconocimiento por quien',
+    recognitionActorOther: 'Otro actor',
+    recognitionForms: 'Forma de reconocimiento',
+    recognitionFormOther: 'Otra forma',
+    repressionActions: 'Acciones de represion',
+    forcedLaborYears: 'Anios de trabajos forzados',
+    prisonYears: 'Anios de prision',
+    repressionActionOther: 'Otra accion de represion',
+    repressedGroups: 'Colectivo represaliado',
+    repressedGroupOther: 'Otro grupo reprimido',
+    victimMenCount: 'Victimas hombres',
+    victimWomenCount: 'Victimas mujeres',
+    victimOtherCount: 'Victimas otro',
+    victimNames: 'Nombres de victimas',
+    victimOccupation: 'Ocupacion de victimas',
+    repressionArguments: 'Argumentos de represion',
+    repressionArgumentOther: 'Otro argumento',
+    perpetrators: 'Perpetradores',
+    perpetratorOther: 'Otro perpetrador',
+    resistanceActions: 'Acciones de resistencia',
+    resistanceActionOther: 'Otra accion de resistencia',
+    demandContents: 'Contenido de la demanda',
+    demandContentOther: 'Otro contenido de demanda',
+    organizerTypes: 'Tipo de organizador',
+    organizerTypeOther: 'Detalle de organizador',
+    participantCount: 'Numero de participantes',
+    participantNames: 'Participantes',
+    participantOccupation: 'Ocupacion de participantes'
+  });
+
+  function escapeHtml(value) {
+    return String(value ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+  }
+
+  function safeRemoteUrl(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    try {
+      const parsed = new URL(raw);
+      if (!['http:', 'https:'].includes(parsed.protocol)) return '';
+      if (parsed.username || parsed.password) return '';
+      return parsed.href;
+    } catch (_error) {
+      return '';
+    }
+  }
+
+  function isHeicUrl(value) {
+    return /\.hei(c|f)(?:[?#]|$)/i.test(String(value || ''));
+  }
+
+  function getDisplayImageUrl(value) {
+    const url = safeRemoteUrl(value);
+    if (!url) return '';
+    if (!isHeicUrl(url)) return url;
+    if (url.includes('res.cloudinary.com') && url.includes('/image/upload/')) {
+      return url.replace('/image/upload/', '/image/upload/f_auto,q_auto/');
+    }
+    return '';
+  }
+
+  function hasValue(value) {
+    return Array.isArray(value)
+      ? value.length > 0
+      : value !== null && value !== undefined && String(value).trim() !== '';
+  }
+
+  function formatValue(value) {
+    return Array.isArray(value) ? value.join(', ') : String(value ?? '');
+  }
+
+  function formatDate(value) {
+    if (!value) return '';
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toLocaleDateString('es-ES');
+  }
+
+  function renderInfoRow(label, value) {
+    if (!hasValue(value)) return '';
+    return `<div class="info-row"><span>${escapeHtml(label)}</span><strong>${escapeHtml(formatValue(value))}</strong></div>`;
+  }
+
+  function renderUnavailable(message = 'Archivo remoto no disponible') {
+    return `<div class="media-preview-fallback"><span>${escapeHtml(message)}</span></div>`;
+  }
+
+  function renderAttachment(attachment = {}, index = 0) {
+    const title = attachment.title || `${attachment.type || 'Adjunto'} ${index + 1}`;
+    const url = safeRemoteUrl(attachment.secureUrl || attachment.url);
+    let body = '';
+
+    if (attachment.type === 'photo') {
+      const displayUrl = getDisplayImageUrl(url);
+      body = displayUrl
+        ? `<img class="media-preview clickable" src="${escapeHtml(displayUrl)}" alt="${escapeHtml(title)}" loading="lazy" data-open-resource="image" data-resource-url="${escapeHtml(displayUrl)}" data-resource-title="${escapeHtml(title)}">`
+        : renderUnavailable(url && isHeicUrl(url) ? 'Formato HEIC no reproducible directamente' : undefined);
+      if (url) body += `<a class="resource-link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">Abrir recurso</a>`;
+    } else if (attachment.type === 'video') {
+      body = url
+        ? `<video class="media-preview clickable" src="${escapeHtml(url)}" controls preload="metadata" data-open-resource="video" data-resource-url="${escapeHtml(url)}" data-resource-title="${escapeHtml(title)}"></video><a class="resource-link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">Abrir recurso</a>`
+        : renderUnavailable();
+    } else if (attachment.type === 'audio') {
+      body = url
+        ? `<audio class="media-preview" src="${escapeHtml(url)}" controls preload="metadata"></audio><a class="resource-link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">Abrir recurso</a>`
+        : renderUnavailable();
+    } else if (attachment.type === 'text') {
+      const text = String(attachment.textContent || '').trim();
+      if (text) body += `<div class="media-preview contribution-text">${escapeHtml(text)}</div>`;
+      if (attachment.kind === 'document' && url) {
+        body += `<a class="resource-link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">Abrir documento</a>`;
+      }
+      if (!text && !(attachment.kind === 'document' && url)) body = renderUnavailable('Texto o documento no disponible');
+    } else {
+      body = renderUnavailable();
+    }
+
+    return `<section class="contribution-attachment" data-attachment-type="${escapeHtml(attachment.type || '')}"><h4>${escapeHtml(title)}</h4>${body}</section>`;
+  }
+
+  function groupAttachments(attachments = []) {
+    return attachments.reduce((groups, attachment) => {
+      const key = attachment.type || 'other';
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(attachment);
+      return groups;
+    }, {});
+  }
+
+  function getAttachmentSummary(entity = {}) {
+    const groups = groupAttachments(Array.isArray(entity.attachments) ? entity.attachments : []);
+    return {
+      photos: groups.photo?.length || 0,
+      videos: groups.video?.length || 0,
+      audios: groups.audio?.length || 0,
+      texts: groups.text?.filter((item) => item.kind !== 'document').length || 0,
+      documents: groups.text?.filter((item) => item.kind === 'document').length || 0,
+      unavailable: (entity.attachments || []).filter((item) => item.unavailable).length
+    };
+  }
+
+  function getEntityCoverUrl(entity = {}) {
+    const photo = (entity.attachments || []).find((attachment) => attachment.type === 'photo');
+    return photo ? getDisplayImageUrl(photo.secureUrl || photo.url) : '';
+  }
+
+  function renderAttachmentGroups(entity = {}) {
+    const groups = groupAttachments(entity.attachments || []);
+    const definitions = [
+      ['photo', 'Fotografias'],
+      ['video', 'Videos'],
+      ['audio', 'Audios'],
+      ['text', 'Documentos y textos']
+    ];
+    const rendered = definitions.map(([type, label]) => {
+      const items = groups[type] || [];
+      if (!items.length) return '';
+      return `<section class="contribution-group"><h3>${escapeHtml(label)} (${items.length})</h3><div class="contribution-attachment-grid">${items.map(renderAttachment).join('')}</div></section>`;
+    }).join('');
+    return rendered || renderUnavailable('No hay archivos disponibles en esta aportacion');
+  }
+
+  function renderContributionCard(entity = {}) {
+    const ficha = entity.fichaDescriptiva && typeof entity.fichaDescriptiva === 'object' ? entity.fichaDescriptiva : {};
+    const location = entity.locationLabel || [entity.city, entity.country].filter(Boolean).join(', ');
+    const coordinates = entity.location?.hasCoordinates
+      ? `${Number(entity.latitude).toFixed(5)}, ${Number(entity.longitude).toFixed(5)}`
+      : '';
+    const fichaRows = Object.entries(FICHA_LABELS)
+      .filter(([field]) => field !== 'description')
+      .map(([field, label]) => renderInfoRow(label, ficha[field]))
+      .join('');
+
+    return `
+      <article class="media-card contribution-card" data-entity-key="${escapeHtml(entity.key || '')}">
+        <div class="contribution-badge">Aportacion agrupada</div>
+        <h3>${escapeHtml(entity.title || `Aportacion ${entity.id ?? ''}`)}</h3>
+        ${renderInfoRow('Descripcion', entity.description)}
+        ${renderInfoRow('Usuario', entity.username)}
+        ${renderInfoRow('Proyecto', entity.projectName)}
+        ${renderInfoRow('Fecha de subida', formatDate(entity.date))}
+        ${renderInfoRow('Ubicacion', location)}
+        ${renderInfoRow('Coordenadas', coordinates)}
+        ${fichaRows ? `<section class="contribution-ficha"><h3>Ficha MEMOLAND</h3>${fichaRows}</section>` : ''}
+        ${renderAttachmentGroups(entity)}
+      </article>`;
+  }
+
+  return {
+    FICHA_LABELS,
+    escapeHtml,
+    safeRemoteUrl,
+    isHeicUrl,
+    getDisplayImageUrl,
+    hasValue,
+    formatValue,
+    formatDate,
+    renderInfoRow,
+    renderUnavailable,
+    renderAttachment,
+    groupAttachments,
+    getAttachmentSummary,
+    getEntityCoverUrl,
+    renderAttachmentGroups,
+    renderContributionCard
+  };
+}));
+  </script>
+  <script>
+    const API_BASE_URL = MemolandApiClient.resolveApiBaseUrl(window.MEMOLAND_API_BASE_URL);
 
     const MARKER_ICON_SIZE_OPTIONS = {
       'muy-pequeno': { folder: '40px', size: 40 },
@@ -1598,10 +2303,13 @@
     const state = {
       map: null,
       markerLayer: null,
-      photos: [],
-      videos: [],
-      texts: [],
-      audios: [],
+      entities: [],
+      sourceErrors: [],
+      loadedSources: [],
+      sourceData: {
+        legacy: { photo: [], video: [], audio: [], text: [] },
+        contributions: []
+      },
       markers: [],
       userLocationLayer: null,
       activeEventType: '',
@@ -1691,50 +2399,19 @@
     }
 
     function escapeHtml(value) {
-      return String(value ?? '')
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;')
-        .replaceAll('"', '&quot;')
-        .replaceAll("'", '&#039;');
+      return MemolandContributionView.escapeHtml(value);
     }
 
     function parseMaybeJson(value) {
-      if (!value) return null;
-      if (typeof value === 'object') return value;
-      if (typeof value === 'string') {
-        try {
-          return JSON.parse(value);
-        } catch (error) {
-          return null;
-        }
-      }
-      return null;
+      return MemolandContent.parseMaybeJson(value, null);
     }
 
     function parseListValue(value) {
-      if (!value) return [];
-      if (Array.isArray(value)) {
-        return value.flatMap((item) => parseListValue(item));
-      }
-      if (typeof value === 'string') {
-        try {
-          const parsed = JSON.parse(value);
-          if (Array.isArray(parsed)) return parsed.map(String).map((item) => item.trim()).filter(Boolean);
-        } catch (error) {
-          return value.split(',').map((item) => item.trim()).filter(Boolean);
-        }
-        return value.split(',').map((item) => item.trim()).filter(Boolean);
-      }
-      return [String(value)];
+      return MemolandContent.asArray(value);
     }
 
     function normalizeText(value) {
-      return String(value || '')
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .trim()
-        .toLowerCase();
+      return MemolandContent.normalizeText(value);
     }
 
     function formatListValue(value) {
@@ -1743,7 +2420,8 @@
     }
 
     function getMediaForm(media) {
-      return parseMaybeJson(media?.fichaDescriptiva) ||
+      const normalizedFicha = parseMaybeJson(media?.fichaDescriptiva);
+      return (normalizedFicha && typeof normalizedFicha === 'object' ? normalizedFicha : null) ||
         parseMaybeJson(media?.formData) ||
         parseMaybeJson(media?.form) ||
         media?.form ||
@@ -1783,6 +2461,7 @@
     }
 
     function getMarkerIconId(media) {
+      if (media?.markerIconId) return media.markerIconId;
       const firstEventType = normalizeText(getMediaEventTypes(media)[0]);
 
       if (firstEventType === 'represion') {
@@ -1790,7 +2469,7 @@
         const occurrencePlaces = parseListValue(
           media?.fichaOccurrencePlaces ||
           getMediaForm(media).occurrencePlaces ||
-          media?.location
+          media?.locationLabel
         ).map(normalizeText);
 
         if (occurrencePlaces.includes('fosa comun')) return 'represion_fosa_comun';
@@ -1822,55 +2501,6 @@
       return null;
     }
 
-    function getMediaCoordinate(media) {
-      return {
-        latitude: Number(media?.latitude),
-        longitude: Number(media?.longitude)
-      };
-    }
-
-    function getDistanceKm(firstCoordinate, secondCoordinate) {
-      const firstLatitude = Number(firstCoordinate?.latitude);
-      const firstLongitude = Number(firstCoordinate?.longitude);
-      const secondLatitude = Number(secondCoordinate?.latitude);
-      const secondLongitude = Number(secondCoordinate?.longitude);
-
-      if (
-        !Number.isFinite(firstLatitude) ||
-        !Number.isFinite(firstLongitude) ||
-        !Number.isFinite(secondLatitude) ||
-        !Number.isFinite(secondLongitude)
-      ) return Infinity;
-
-      const earthRadiusKm = 6371;
-      const latitudeDistance = ((secondLatitude - firstLatitude) * Math.PI) / 180;
-      const longitudeDistance = ((secondLongitude - firstLongitude) * Math.PI) / 180;
-      const firstLatitudeRadians = (firstLatitude * Math.PI) / 180;
-      const secondLatitudeRadians = (secondLatitude * Math.PI) / 180;
-      const a =
-        Math.sin(latitudeDistance / 2) * Math.sin(latitudeDistance / 2) +
-        Math.cos(firstLatitudeRadians) *
-          Math.cos(secondLatitudeRadians) *
-          Math.sin(longitudeDistance / 2) *
-          Math.sin(longitudeDistance / 2);
-
-      return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    }
-
-    function valuesAreSameCoordinate(first, second) {
-      const a = Number(first);
-      const b = Number(second);
-      return Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) < 0.000001;
-    }
-
-    function normalizeCollection(data, key) {
-      if (Array.isArray(data)) return data;
-      if (Array.isArray(data?.[key])) return data[key];
-      if (Array.isArray(data?.data)) return data.data;
-      if (Array.isArray(data?.result)) return data.result;
-      return [];
-    }
-
     async function fetchJson(url) {
       const response = await fetch(url);
       const data = await response.json().catch(() => ({}));
@@ -1879,22 +2509,15 @@
     }
 
     function getAllContents() {
-      return [
-        ...state.photos.map((item) => ({ ...item, __mediaType: 'photo' })),
-        ...state.videos.map((item) => ({ ...item, __mediaType: 'video' })),
-        ...state.texts.map((item) => ({ ...item, __mediaType: 'text' })),
-        ...state.audios.map((item) => ({ ...item, __mediaType: 'audio' }))
-      ];
+      return state.entities;
     }
 
     function mediaMatchesEventFilter(media) {
-      if (!state.activeEventType) return true;
-      return getMediaEventTypes(media).some((eventType) => normalizeText(eventType) === normalizeText(state.activeEventType));
+      return MemolandContent.entityMatchesEventFilter(media, state.activeEventType);
     }
 
     function mediaMatchesTypeFilter(media) {
-      if (!state.activeMediaType) return true;
-      return media.__mediaType === state.activeMediaType;
+      return MemolandContent.entityMatchesMediaType(media, state.activeMediaType);
     }
 
     function getMediaUsername(media) {
@@ -1918,8 +2541,7 @@
     }
 
     function mediaMatchesLocationFilter(media) {
-      if (!state.locationFilter) return true;
-      return getDistanceKm(getMediaCoordinate(media), state.locationFilter.coordinate) <= state.locationFilter.radiusKm;
+      return MemolandContent.entityMatchesDistanceFilter(media, state.locationFilter);
     }
 
     function getVisibleContents() {
@@ -1933,34 +2555,13 @@
     }
 
     function createMarkers(contents) {
-      const markersByCoordinate = new Map();
-
-      contents.forEach((media, index) => {
-        const latitude = Number(media.latitude);
-        const longitude = Number(media.longitude);
-
-        if (
-          !Number.isFinite(latitude) ||
-          !Number.isFinite(longitude) ||
-          Math.abs(latitude) > 90 ||
-          Math.abs(longitude) > 180
-        ) return;
-
-        const key = `${latitude.toFixed(6)},${longitude.toFixed(6)}`;
-        if (!markersByCoordinate.has(key)) {
-          markersByCoordinate.set(key, {
-            id: `${key}-${index}`,
-            latitude,
-            longitude,
-            media,
-            contents: []
-          });
-        }
-
-        markersByCoordinate.get(key).contents.push(media);
-      });
-
-      state.markers = Array.from(markersByCoordinate.values());
+      state.markers = MemolandContent.groupEntitiesByCoordinate(contents).map((group) => ({
+        id: group.key,
+        latitude: group.latitude,
+        longitude: group.longitude,
+        media: group.entities[0],
+        contents: group.entities
+      }));
     }
 
     function getMarkerColor(media) {
@@ -2143,7 +2744,10 @@
     }
 
     function getMediaUrl(item) {
-      return item.secure_url || item.url || item.file || item.image || item.video || item.audio || '';
+      const attachment = item?.origin === 'legacy' ? item.attachments?.[0] : null;
+      return MemolandContributionView.safeRemoteUrl(
+        attachment?.secureUrl || attachment?.url || item.secure_url || item.url || item.file || item.image || item.video || item.audio
+      );
     }
 
     function isHeicUrl(url) {
@@ -2151,12 +2755,7 @@
     }
 
     function getDisplayImageUrl(url) {
-      const value = String(url || '');
-      if (!isHeicUrl(value)) return value;
-      if (value.includes('res.cloudinary.com') && value.includes('/image/upload/')) {
-        return value.replace('/image/upload/', '/image/upload/f_auto,q_auto/');
-      }
-      return '';
+      return MemolandContributionView.getDisplayImageUrl(url);
     }
 
     function formatDate(value) {
@@ -2170,7 +2769,7 @@
       return [
         ['Descripcion del evento', item.fichaDescription || form.description || item.description],
         ['Tipo de evento', formatListValue(item.fichaEventTypes || form.eventTypes || item.category || item.accionObservada)],
-        ['Donde ocurre', formatListValue(item.fichaOccurrencePlaces || form.occurrencePlaces || item.location || item.ubicacion)],
+        ['Donde ocurre', formatListValue(item.fichaOccurrencePlaces || form.occurrencePlaces || item.locationLabel || item.ubicacion)],
         ['Otro lugar', item.fichaOccurrencePlaceOther || form.occurrencePlaceOther || item.newCategory],
         ['Periodo', item.fichaPeriod || form.period || item.lengua2],
         ['Fuente', item.fichaSource || form.source || item.reason || item.lengua1],
@@ -2192,6 +2791,9 @@
     }
 
     function renderMediaPreview(item) {
+      if (item.origin === 'legacy' && item.attachments?.[0]) {
+        return MemolandContributionView.renderAttachment(item.attachments[0], 0);
+      }
       const url = getMediaUrl(item);
       const title = getMediaTitle(item);
       if (item.__mediaType === 'photo' && url) {
@@ -2234,15 +2836,16 @@
     }
 
     function openLightbox(type, url, title) {
-      if (!url) return;
+      const safeUrl = MemolandContributionView.safeRemoteUrl(url);
+      if (!safeUrl) return;
       elements.lightboxTitle.textContent = title || 'Recurso';
 
       if (type === 'video') {
-        elements.lightboxBody.innerHTML = `<video src="${escapeHtml(url)}" controls autoplay></video>`;
+        elements.lightboxBody.innerHTML = `<video src="${escapeHtml(safeUrl)}" controls autoplay></video>`;
       } else if (type === 'audio') {
-        elements.lightboxBody.innerHTML = `<audio src="${escapeHtml(url)}" controls autoplay></audio>`;
+        elements.lightboxBody.innerHTML = `<audio src="${escapeHtml(safeUrl)}" controls autoplay></audio>`;
       } else {
-        elements.lightboxBody.innerHTML = `<img src="${escapeHtml(url)}" alt="">`;
+        elements.lightboxBody.innerHTML = `<img src="${escapeHtml(safeUrl)}" alt="">`;
       }
 
       elements.lightbox.classList.remove('hidden');
@@ -2259,8 +2862,14 @@
     }
 
     function renderMediaCard(item, index) {
+      if (item.origin === 'contribution') {
+        return MemolandContributionView.renderContributionCard(item);
+      }
       const typeInfo = MEDIA_TYPES[item.__mediaType] || { label: 'Contenido' };
       const fields = getMemolandFields(item);
+      const coordinates = item.location?.hasCoordinates
+        ? `${Number(item.latitude).toFixed(5)}, ${Number(item.longitude).toFixed(5)}`
+        : '';
       return `
         <article class="media-card">
           <h3>${escapeHtml(typeInfo.label)} ${index + 1}</h3>
@@ -2269,8 +2878,8 @@
           ${renderInfoRow('Usuario', item.username)}
           ${renderInfoRow('Proyecto', item.projectName)}
           ${renderInfoRow('Fecha de subida', formatDate(item.date || item.createdAt || item.updatedAt))}
-          ${renderInfoRow('Ubicacion', item.location || [item.city, item.country].filter(Boolean).join(', '))}
-          ${renderInfoRow('Coordenadas', `${Number(item.latitude).toFixed(5)}, ${Number(item.longitude).toFixed(5)}`)}
+          ${renderInfoRow('Ubicacion', item.locationLabel || [item.city, item.country].filter(Boolean).join(', '))}
+          ${renderInfoRow('Coordenadas', coordinates)}
           ${fields.length ? '<div class="info-row"><span>Ficha MEMOLAND</span></div>' : ''}
           ${fields.map(([label, value]) => renderInfoRow(label, value)).join('')}
         </article>
@@ -2278,6 +2887,7 @@
     }
 
     function getGalleryImageUrl(item) {
+      if (item.origin === 'contribution') return MemolandContributionView.getEntityCoverUrl(item);
       const sources = item.__mediaType === 'photo'
         ? [getMediaUrl(item), item.coverImage, item.thumbnailUrl, item.thumbnail, item.poster]
         : [item.coverImage, item.thumbnailUrl, item.thumbnail, item.poster, item.image];
@@ -2289,25 +2899,35 @@
 
     function renderGalleryCard(item) {
       const title = getMediaTitle(item);
-      const contentId = String(item._id || item.id || '');
+      const contentKey = String(item.key || '');
       const imageUrl = getGalleryImageUrl(item);
       const form = getMediaForm(item);
       const place = form.place || {};
       const city = item.fichaPlaceCity || place.city || item.city;
       const country = item.fichaPlaceCountry || place.country || item.country;
-      const location = [city, country].filter(Boolean).join(', ') || item.location || item.ubicacion;
+      const location = item.locationLabel || [city, country].filter(Boolean).join(', ') || item.ubicacion;
       const date = formatDate(item.date || item.createdAt || item.updatedAt) || item.fichaPeriod || form.period;
       const iconId = getMarkerIconId(item);
       const testimonyType = [formatListValue(getMediaEventTypes(item)), iconId ? getSubcategoryLabel(iconId) : ''].filter(Boolean).join(' / ');
-      const materialType = MEDIA_TYPES[item.__mediaType]?.label;
+      const summary = item.origin === 'contribution' ? MemolandContributionView.getAttachmentSummary(item) : null;
+      const materialType = summary
+        ? [
+            summary.photos && `${summary.photos} foto(s)`,
+            summary.videos && `${summary.videos} video(s)`,
+            summary.audios && `${summary.audios} audio(s)`,
+            (summary.documents + summary.texts) && `${summary.documents + summary.texts} texto(s)/documento(s)`
+          ].filter(Boolean).join(', ')
+        : MEDIA_TYPES[item.__mediaType]?.label;
       const username = item.username || item.user?.username || '';
-      const resourceUrl = item.__mediaType === 'text' ? item.secure_url || '' : getMediaUrl(item);
+      const resourceUrl = item.origin === 'contribution'
+        ? ''
+        : MemolandContributionView.safeRemoteUrl(item.__mediaType === 'text' ? item.secure_url || '' : getMediaUrl(item));
 
       return `
         <article class="media-card gallery-card">
           ${imageUrl ? `
-            <img class="gallery-cover ${item.__mediaType === 'photo' ? 'clickable' : ''}" src="${escapeHtml(imageUrl)}" alt="Foto principal de ${escapeHtml(title)}" loading="lazy"
-              ${item.__mediaType === 'photo' ? `data-open-resource="image" data-resource-url="${escapeHtml(imageUrl)}" data-resource-title="${escapeHtml(title)}"` : ''}>
+            <img class="gallery-cover clickable" src="${escapeHtml(imageUrl)}" alt="Foto principal de ${escapeHtml(title)}" loading="lazy"
+              data-open-resource="image" data-resource-url="${escapeHtml(imageUrl)}" data-resource-title="${escapeHtml(title)}">
           ` : '<div class="gallery-cover gallery-cover-empty">Sin imagen disponible</div>'}
           <h3>${escapeHtml(title)}</h3>
           ${renderInfoRow('Lugar', location)}
@@ -2322,7 +2942,7 @@
           ${username ? `<p class="gallery-shared">Compartido por: <strong>${escapeHtml(username)}</strong></p>` : ''}
           <div class="gallery-actions">
             ${resourceUrl ? `<a class="resource-link" href="${escapeHtml(resourceUrl)}" target="_blank" rel="noopener">Abrir recurso</a>` : ''}
-            <button class="button gallery-more" type="button" data-open-testimony data-content-id="${escapeHtml(contentId)}" data-content-type="${escapeHtml(item.__mediaType)}" ${contentId ? '' : 'disabled'}>SABER MÁS</button>
+            <button class="button gallery-more" type="button" data-open-testimony data-content-key="${escapeHtml(contentKey)}" ${contentKey ? '' : 'disabled'}>SABER MÁS</button>
           </div>
         </article>
       `;
@@ -2721,22 +3341,32 @@
       elements.refreshButton.disabled = true;
 
       try {
-        const [photos, videos, texts, audios] = await Promise.all([
-          fetchJson(ENDPOINTS.photos),
-          fetchJson(ENDPOINTS.videos),
-          fetchJson(ENDPOINTS.texts),
-          fetchJson(ENDPOINTS.audios)
-        ]);
+        const result = await MemolandApiClient.fetchContentSources({ apiBaseUrl: API_BASE_URL });
+        if (!result.loadedSources.length) {
+          throw new Error('No se pudo cargar ninguna fuente de contenidos.');
+        }
 
-        state.photos = normalizeCollection(photos, 'photos');
-        state.videos = normalizeCollection(videos, 'videos');
-        state.texts = normalizeCollection(texts, 'texts');
-        state.audios = normalizeCollection(audios, 'audios');
+        ['photo', 'video', 'audio', 'text'].forEach((type) => {
+          if (result.loadedSources.includes(type)) state.sourceData.legacy[type] = result.legacy[type];
+        });
+        if (result.loadedSources.includes('contributions')) {
+          state.sourceData.contributions = result.contributions;
+        }
+
+        state.entities = MemolandContent.normalizeContentSources(state.sourceData);
+        state.sourceErrors = result.errors;
+        state.loadedSources = result.loadedSources;
 
         renderFilters();
         if (shouldFitMarkers) fitVisibleMarkers();
-        setConnectionStatus('ok', 'Conectado a Memoland');
-        setStatus('');
+        if (result.partial) {
+          const failedSources = result.errors.map((item) => item.source).join(', ');
+          setConnectionStatus('bad', `Carga incompleta. Fuentes no disponibles: ${failedSources}`);
+          setStatus(`Carga incompleta: no se pudieron actualizar ${failedSources}. Los demas contenidos siguen disponibles.`, 'bad');
+        } else {
+          setConnectionStatus('ok', 'Conectado a Memoland');
+          setStatus('');
+        }
       } catch (error) {
         setConnectionStatus('bad', 'No se pudo conectar con Memoland');
         setStatus(error.message || 'No se pudieron cargar los contenidos.', 'bad');
@@ -2835,11 +3465,8 @@
     elements.contentGridBody.addEventListener('click', (event) => {
       const detailButton = event.target.closest('[data-open-testimony]');
       if (detailButton) {
-        if (!detailButton.dataset.contentId) return;
-        const item = getAllContents().find((content) =>
-          content.__mediaType === detailButton.dataset.contentType &&
-          String(content._id || content.id || '') === detailButton.dataset.contentId
-        );
+        if (!detailButton.dataset.contentKey) return;
+        const item = getAllContents().find((content) => content.key === detailButton.dataset.contentKey);
         if (!item) return;
         if (state.isGridFullscreen) setGridFullscreen(false);
         openContentDrawer([item], getMediaTitle(item), 'Ficha completa del testimonio');

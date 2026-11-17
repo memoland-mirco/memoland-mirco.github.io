@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Dashboard de análisis y estadísticas de MEMOLAND">
+  <title>Dashboard MEMOLAND</title>
+  <link rel="icon" href="../../assets/favicon.png">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <style>
+    @font-face { font-family: Poppins; src: url('../../assets/fonts/Poppins-Light.ttf') format('truetype'); font-weight: 300; font-display: swap; }
+    @font-face { font-family: Poppins; src: url('../../assets/fonts/Poppins-Medium.ttf') format('truetype'); font-weight: 500; font-display: swap; }
+    @font-face { font-family: Poppins; src: url('../../assets/fonts/Poppins-SemiBold.ttf') format('truetype'); font-weight: 600; font-display: swap; }
+    @font-face { font-family: Poppins; src: url('../../assets/fonts/Poppins-Bold.ttf') format('truetype'); font-weight: 700; font-display: swap; }
+    :root {
+      --ink: #172129; --muted: #65717c; --paper: #fff; --canvas: #f2f6f6; --line: #dce5e4;
+      --teal: #167c75; --teal-dark: #0e5a55; --teal-soft: #dff1ef; --pink: #df197e;
+      --repression: #a33a43; --repression-soft: #f8e6e7; --resistance: #18746d; --resistance-soft: #def1ee;
+      --both: #7551a6; --missing: #77828a; --warning: #9b6514; --danger: #a12e36;
+      --shadow: 0 14px 38px rgba(23, 33, 41, .09); --radius: 14px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; padding-bottom: 116px; color: var(--ink); background: var(--canvas); font-family: Poppins, Arial, sans-serif; font-size: 14px; }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focus-visible { outline: 3px solid rgba(223, 25, 126, .32); outline-offset: 2px; }
+    .hidden { display: none !important; }
+    .app-header { position: sticky; top: 0; z-index: 900; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 20px; padding-block: 8px; padding-inline: max(18px, calc((100vw - 1320px) / 2)); background: rgba(255,255,255,.96); border-bottom: 1px solid rgba(31,41,51,.12); box-shadow: 0 10px 24px rgba(31,41,51,.1); backdrop-filter: blur(10px); }
+    .map-brand { grid-column: 1 / -1; display: flex; justify-content: space-between; gap: 12px; align-items: center; min-width: 0; width: 100%; max-width: 1180px; margin-inline: auto; }
+    .map-brand-logo { display: block; width: 320px; height: 88px; flex: 0 1 320px; min-width: 0; object-fit: contain; object-position: center; transition: transform 160ms ease, filter 160ms ease; }
+    .memory-map-link { display: block; width: 320px; height: 88px; flex: 0 1 320px; min-width: 0; }
+    .memory-map-logo { display: block; width: 100%; height: 100%; min-width: 0; object-fit: cover; object-position: center 46%; border-radius: 8px; }
+    .map-brand-logo:hover, .memory-map-logo:hover { transform: scale(1.05); filter: drop-shadow(0 10px 16px rgba(31,41,51,.14)); }
+    .top-nav { display: flex; flex: 1; justify-content: center; gap: 4px; overflow-x: auto; scrollbar-width: thin; }
+    .top-nav a { flex: 0 0 auto; padding: 9px 11px; color: #42505a; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 12px; }
+    .top-nav a:hover { color: var(--teal-dark); background: var(--teal-soft); }
+    .header-actions { display: flex; align-items: center; gap: 8px; }
+    .institutional-footer { position: fixed; z-index: 850; right: 0; bottom: 0; left: 0; padding-block: 7px; padding-inline: max(18px, calc((100vw - 1320px) / 2)); background: rgba(255,255,255,.97); border-top: 1px solid rgba(31,41,51,.12); box-shadow: 0 -8px 24px rgba(31,41,51,.1); backdrop-filter: blur(10px); }
+    .partner-logos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: center; justify-items: center; gap: 10px; width: 100%; max-width: 1060px; min-width: 0; min-height: 88px; margin-inline: auto; padding: 6px 14px; overflow: visible; background: #f9fafb; border: 1px solid rgba(31,41,51,.1); border-radius: 8px; }
+    .partner-logos a { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; min-width: 0; text-decoration: none; }
+    .partner-logos img { display: block; width: 100%; max-width: 158px; max-height: 54px; object-fit: contain; transition: transform 160ms ease, filter 160ms ease; }
+    .partner-logos img:hover { transform: scale(1.14); filter: drop-shadow(0 10px 16px rgba(31,41,51,.18)); }
+    .partner-logos .logo-foro { width: 68px; height: 68px; max-width: 68px; max-height: 68px; }
+    .partner-logos .logo-uam { max-width: 205px; max-height: 58px; }
+    .partner-logos .logo-ministerio { max-width: 176px; max-height: 68px; }
+    .button { min-height: 40px; padding: 8px 14px; border: 1px solid transparent; border-radius: 9px; color: #fff; background: var(--teal-dark); font-weight: 600; }
+    .button:hover { filter: brightness(.96); }
+    .button.secondary { color: var(--ink); background: #fff; border-color: var(--line); }
+    .button.ghost { color: var(--teal-dark); background: var(--teal-soft); }
+    .button.small { min-height: 32px; padding: 5px 10px; font-size: 12px; }
+    .eyebrow { display: block; margin-bottom: 8px; color: var(--pink); font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+    .field { display: grid; gap: 7px; margin-bottom: 16px; }
+    .field label { font-weight: 600; font-size: 12px; }
+    .field input, .field select { width: 100%; min-height: 44px; padding: 9px 11px; color: var(--ink); background: #fff; border: 1px solid #cfdad9; border-radius: 9px; }
+    .dashboard { max-width: 1720px; margin: auto; padding: 22px clamp(14px, 2.5vw, 38px) 70px; }
+    .hero { display: flex; justify-content: space-between; gap: 24px; align-items: flex-end; margin: 12px 0 20px; padding: clamp(22px, 3vw, 36px); border-radius: 18px; color: #fff; background: linear-gradient(120deg, #123a3b, #116b65 58%, #1b8a80); box-shadow: var(--shadow); }
+    .hero h1 { margin: 0; font-size: clamp(26px, 4vw, 44px); line-height: 1.1; }
+    .hero p { max-width: 720px; margin: 11px 0 0; color: #d7efed; line-height: 1.65; }
+    .hero-meta { min-width: 210px; text-align: right; color: #d7efed; font-size: 12px; }
+    .hero-meta strong { display: block; color: #fff; font-size: 15px; }
+    .load-banner { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 16px; padding: 14px 16px; border: 1px solid #efcf9f; border-radius: 12px; color: #754a0b; background: #fff6e8; }
+    .source-grid { display: grid; grid-template-columns: repeat(7, minmax(110px, 1fr)); gap: 8px; margin-bottom: 18px; }
+    .source-state { padding: 9px 11px; border: 1px solid var(--line); border-radius: 9px; background: #fff; font-size: 11px; }
+    .source-state strong { display: block; margin-bottom: 3px; }
+    .source-state.loaded { border-color: #b7ddd4; background: #edf8f5; }
+    .source-state.failed { border-color: #ecc2c5; background: #fcedee; }
+    .workspace { display: grid; grid-template-columns: 285px minmax(0, 1fr); gap: 20px; align-items: start; }
+    .filters { position: sticky; top: 162px; max-height: calc(100vh - 180px); overflow: auto; padding: 16px; border: 1px solid var(--line); border-radius: var(--radius); background: #fff; box-shadow: 0 8px 24px rgba(23,33,41,.05); }
+    .filters-header { display: flex; justify-content: space-between; gap: 8px; align-items: center; margin-bottom: 12px; }
+    .filters h2 { margin: 0; font-size: 17px; }
+    .filter-count { margin: 0 0 14px; padding: 10px; border-radius: 9px; color: var(--teal-dark); background: var(--teal-soft); font-size: 12px; }
+    .filter-count strong { font-size: 18px; }
+    .filter-group { padding: 13px 0; border-top: 1px solid #edf1f1; }
+    .filter-group:first-of-type { border-top: 0; }
+    .filter-group summary { cursor: pointer; font-weight: 600; font-size: 12px; }
+    .chip-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .filter-chip { min-height: 30px; padding: 5px 8px; color: #4b5962; background: #f4f7f7; border: 1px solid #dce4e3; border-radius: 999px; font-size: 10px; text-align: left; }
+    .filter-chip[aria-pressed="true"] { color: #fff; background: var(--teal-dark); border-color: var(--teal-dark); }
+    .date-row { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 10px; }
+    .date-row input { width: 100%; min-width: 0; padding: 6px; border: 1px solid #d4dedd; border-radius: 7px; font-size: 10px; }
+    .content { min-width: 0; }
+    .section { scroll-margin-top: 162px; margin-bottom: 24px; padding: clamp(17px, 2vw, 26px); border: 1px solid var(--line); border-radius: var(--radius); background: #fff; box-shadow: 0 9px 30px rgba(23,33,41,.045); }
+    .section-heading { display: flex; justify-content: space-between; gap: 15px; align-items: flex-end; margin-bottom: 18px; }
+    .section-heading h2 { margin: 0; font-size: clamp(21px, 2.6vw, 30px); }
+    .section-heading p { max-width: 700px; margin: 5px 0 0; color: var(--muted); line-height: 1.55; font-size: 12px; }
+    .scope-label { flex: 0 0 auto; padding: 6px 9px; color: var(--teal-dark); background: var(--teal-soft); border-radius: 999px; font-size: 10px; font-weight: 600; }
+    .metric-grid { display: grid; grid-template-columns: repeat(6, minmax(120px, 1fr)); gap: 10px; margin-bottom: 20px; }
+    .metric { min-height: 105px; padding: 15px; border: 1px solid var(--line); border-radius: 11px; background: linear-gradient(145deg, #fff, #f8fbfb); }
+    .metric span { display: block; min-height: 34px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .metric strong { display: block; margin-top: 6px; font-size: 25px; line-height: 1; }
+    .metric small { display: block; margin-top: 8px; color: #819097; font-size: 9px; }
+    .metric.unavailable strong { color: var(--missing); font-size: 14px; }
+    .chart-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .chart-card { min-width: 0; padding: 16px; border: 1px solid var(--line); border-radius: 11px; background: #fcfefe; }
+    .chart-card.wide { grid-column: 1 / -1; }
+    .chart-card h3 { margin: 0; font-size: 15px; }
+    .chart-note { margin: 4px 0 14px; color: var(--muted); font-size: 10px; line-height: 1.5; }
+    .bar-list { display: grid; gap: 9px; }
+    .bar-row { display: grid; grid-template-columns: minmax(105px, 1.4fr) minmax(100px, 2fr) auto; gap: 8px; align-items: center; }
+    .bar-label { overflow: hidden; color: #44525b; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+    button.bar-label { width: 100%; padding: 0; text-align: left; border: 0; background: none; cursor: pointer; }
+    button.bar-label:hover { color: var(--pink); text-decoration: underline; }
+    .bar-track { height: 9px; overflow: hidden; border-radius: 999px; background: #e8eeee; }
+    .bar-fill { height: 100%; min-width: 2px; border-radius: inherit; background: var(--teal); }
+    .bar-fill.repression { background: var(--repression); }
+    .bar-fill.resistance { background: var(--resistance); }
+    .bar-fill.both { background: var(--both); }
+    .bar-fill.missing { background: var(--missing); }
+    .bar-value { color: #34424b; font-size: 10px; font-weight: 600; white-space: nowrap; }
+    .empty { padding: 20px; color: var(--muted); text-align: center; border: 1px dashed #d6dfde; border-radius: 9px; font-size: 11px; }
+    .line-chart { width: 100%; min-height: 210px; }
+    .line-chart text { fill: #65717c; font: 9px Poppins, sans-serif; }
+    .line-chart .grid { stroke: #e2e9e8; stroke-width: 1; }
+    .line-chart .series { fill: none; stroke: var(--pink); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+    .line-chart .area { fill: rgba(223,25,126,.08); }
+    .line-chart circle { fill: #fff; stroke: var(--pink); stroke-width: 2; }
+    .frequency-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .frequency-table th, .frequency-table td { padding: 8px; text-align: left; border-bottom: 1px solid #e8eeee; }
+    .frequency-table th { color: var(--muted); font-size: 9px; text-transform: uppercase; }
+    .map-shell { position: relative; min-height: 480px; overflow: hidden; border: 1px solid var(--line); border-radius: 11px; background: #e9efee; }
+    #territorialMap { height: 480px; }
+    .map-overlay { position: absolute; z-index: 500; left: 12px; bottom: 12px; max-width: 280px; padding: 9px 11px; border-radius: 8px; background: rgba(255,255,255,.94); box-shadow: 0 4px 16px rgba(0,0,0,.12); font-size: 10px; }
+    .map-popup-button { margin-top: 6px; padding: 4px 7px; color: #fff; background: var(--teal-dark); border: 0; border-radius: 6px; font-size: 10px; }
+    .export-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+    .table-tools { display: grid; grid-template-columns: minmax(180px, 1fr) 190px 130px; gap: 8px; margin-bottom: 12px; }
+    .table-tools input, .table-tools select { min-height: 40px; padding: 7px 10px; border: 1px solid #ced9d8; border-radius: 8px; background: #fff; }
+    .table-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
+    .data-table { width: 100%; min-width: 1050px; border-collapse: collapse; font-size: 10px; }
+    .data-table th { position: sticky; top: 0; z-index: 1; padding: 10px 8px; color: #52616a; background: #eef4f3; text-align: left; white-space: nowrap; }
+    .data-table td { max-width: 220px; padding: 9px 8px; border-top: 1px solid #e7edec; vertical-align: top; }
+    .data-table tbody tr:hover { background: #f7fbfa; }
+    .origin-pill, .class-pill { display: inline-block; padding: 4px 6px; border-radius: 999px; font-size: 9px; white-space: nowrap; }
+    .origin-pill { color: #4b5962; background: #e9eeee; }
+    .class-pill.repression { color: #7f2830; background: var(--repression-soft); }
+    .class-pill.resistance { color: #0f5a55; background: var(--resistance-soft); }
+    .class-pill.both { color: #573882; background: #eee7f8; }
+    .class-pill.unclassified { color: #59646b; background: #edf0f1; }
+    .pagination { display: flex; justify-content: space-between; gap: 10px; align-items: center; margin-top: 12px; color: var(--muted); font-size: 11px; }
+    .pagination-actions { display: flex; gap: 6px; }
+    dialog { width: min(980px, calc(100% - 24px)); max-height: 90vh; padding: 0; overflow: hidden; color: var(--ink); border: 0; border-radius: 16px; box-shadow: 0 24px 80px rgba(0,0,0,.3); }
+    dialog::backdrop { background: rgba(10,20,23,.64); }
+    .dialog-head { position: sticky; top: 0; z-index: 2; display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; padding: 18px 22px; color: #fff; background: #123f3e; }
+    .dialog-head h2 { margin: 0; font-size: 20px; }
+    .dialog-head p { margin: 4px 0 0; color: #cfe6e3; font-size: 11px; }
+    .dialog-close { width: 36px; height: 36px; color: #fff; background: rgba(255,255,255,.14); border: 0; border-radius: 8px; font-size: 20px; }
+    .dialog-body { max-height: calc(90vh - 82px); overflow: auto; padding: 22px; }
+    .detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .detail-field { padding: 10px; border: 1px solid #e1e8e7; border-radius: 8px; background: #fafcfc; }
+    .detail-field.wide { grid-column: 1 / -1; }
+    .detail-field span { display: block; color: var(--muted); font-size: 9px; font-weight: 600; text-transform: uppercase; }
+    .detail-field strong { display: block; margin-top: 4px; white-space: pre-wrap; word-break: break-word; font-size: 11px; font-weight: 500; }
+    .attachments { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+    .attachment { min-width: 0; padding: 10px; border: 1px solid #dfe7e6; border-radius: 9px; }
+    .attachment img, .attachment video { width: 100%; max-height: 270px; object-fit: contain; border-radius: 7px; background: #111; }
+    .attachment audio { width: 100%; }
+    .attachment a { display: inline-block; margin-top: 7px; color: var(--teal-dark); word-break: break-all; font-size: 10px; }
+    .attachment p { white-space: pre-wrap; font-size: 11px; }
+    .security-note { margin-top: 20px; padding: 15px; color: #70500e; border: 1px solid #ebcf91; border-radius: 10px; background: #fff8e7; font-size: 11px; line-height: 1.6; }
+    .loading-cover { position: fixed; z-index: 2000; inset: 0; display: grid; place-items: center; background: rgba(242,246,246,.88); backdrop-filter: blur(3px); }
+    .loading-card { padding: 24px 30px; border-radius: 13px; background: #fff; box-shadow: var(--shadow); text-align: center; }
+    .spinner { width: 34px; height: 34px; margin: 0 auto 12px; border: 4px solid #dbe9e7; border-top-color: var(--pink); border-radius: 50%; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @media (max-width: 1250px) { .source-grid { grid-template-columns: repeat(4, 1fr); } .metric-grid { grid-template-columns: repeat(4, 1fr); } }
+    @media (max-width: 980px) {
+      .app-header { position: static; }
+      .top-nav { width: 100%; }
+      .workspace { grid-template-columns: 1fr; }
+      .filters { position: static; max-height: none; }
+      .filter-details-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; }
+      .metric-grid { grid-template-columns: repeat(3, 1fr); }
+      .chart-grid { grid-template-columns: 1fr; }
+      .chart-card.wide { grid-column: auto; }
+    }
+    @media (max-width: 700px) {
+      .map-brand-logo, .memory-map-link { width: 48%; height: 70px; flex-basis: auto; }
+      .top-nav { grid-column: 1 / -1; }
+      .hero { display: block; }
+      .hero-meta { margin-top: 20px; text-align: left; }
+      .source-grid { grid-template-columns: repeat(2, 1fr); }
+      .metric-grid { grid-template-columns: repeat(2, 1fr); }
+      .filter-details-grid { display: block; }
+      .table-tools { grid-template-columns: 1fr; }
+      .detail-grid, .attachments { grid-template-columns: 1fr; }
+      .detail-field.wide { grid-column: auto; }
+      .bar-row { grid-template-columns: minmax(90px, 1.3fr) minmax(75px, 1fr) auto; }
+      #territorialMap, .map-shell { min-height: 390px; height: 390px; }
+    }
+    @media (max-width: 640px) { body { padding-bottom: 142px; } .institutional-footer { padding-inline: 10px; } .partner-logos { grid-template-columns: repeat(2, minmax(0, 1fr)); min-height: 124px; gap: 4px 10px; padding-block: 4px; } .partner-logos img { max-width: 128px; max-height: 42px; } .partner-logos .logo-foro { width: 48px; height: 48px; max-width: 48px; max-height: 48px; } .partner-logos .logo-uam { max-height: 45px; } .partner-logos .logo-ministerio { max-height: 48px; } }
+    @media (max-width: 420px) { .metric-grid { grid-template-columns: 1fr; } .app-header { padding-inline: 10px; } .top-nav { justify-content: flex-start; } .top-nav a { padding-inline: 8px; } }
+    @media print { .app-header, .institutional-footer, .filters, .header-actions, .export-grid, .table-tools, .pagination { display: none !important; } .workspace { display: block; } .section { break-inside: avoid; box-shadow: none; } }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="map-brand">
+      <img class="map-brand-logo" src="../../assets/logo-memoland-horizontal.png" alt="Memoland">
+      <a class="memory-map-link" href="https://www.mapasdelamemoria.com/" aria-label="Ir a Mapas de la Memoria">
+        <img class="memory-map-logo" src="../../assets/Logo Mapas de la Memoria.png" alt="Mapas de la Memoria">
+      </a>
+    </div>
+    <nav id="topNav" class="top-nav" aria-label="Apartados del dashboard">
+      <a href="#resumen">Resumen</a><a href="#represion">Represión</a><a href="#resistencia">Resistencia</a><a href="#reconocimiento">Reconocimiento</a><a href="#territorial">Territorial</a><a href="#participacion">Participación</a><a href="#explorador">Explorador</a>
+    </nav>
+    <div id="headerActions" class="header-actions"><button id="refreshButton" class="button secondary small" type="button">Actualizar</button></div>
+  </header>
+
+  <main>
+    <div id="dashboard" class="dashboard">
+      <section class="hero"><div><span class="eyebrow">MEMOLAND · D5</span><h1>Dashboard MEMOLAND</h1><p>Las cifras distinguen publicaciones de archivos multimedia. Una aportación agrupada cuenta como una publicación, con independencia de sus adjuntos.</p></div><div class="hero-meta"><span>Última actualización</span><strong id="lastUpdated">—</strong><span id="dataScope">Sin datos cargados</span></div></section>
+      <div id="partialBanner" class="load-banner hidden" role="status"></div>
+      <div id="sourceGrid" class="source-grid" aria-label="Estado de las fuentes"></div>
+
+      <div class="workspace">
+        <aside class="filters" aria-label="Filtros globales">
+          <div class="filters-header"><h2>Filtros</h2><button id="resetFilters" class="button ghost small" type="button">Restablecer</button></div>
+          <p class="filter-count"><strong id="filteredCount">0</strong><br>publicaciones cumplen los filtros</p>
+          <div class="field"><label for="globalSearch">Buscar publicaciones</label><input id="globalSearch" type="search" placeholder="Título, usuario, lugar…"></div>
+          <div class="field"><label for="classificationFilter">Clasificación</label><select id="classificationFilter"><option value="">Todas</option><option value="repression">Solo represión</option><option value="resistance">Solo resistencia</option><option value="both">Ambas</option><option value="unclassified">Sin clasificación</option></select></div>
+          <div class="field"><label for="recognitionFilter">Reconocimiento</label><select id="recognitionFilter"><option value="">Todos</option><option value="yes">Sí</option><option value="no">No</option><option value="missing">Sin información</option></select></div>
+          <div class="field"><label for="originFilter">Origen</label><select id="originFilter"><option value="">Todos</option><option value="contribution">Contribución</option><option value="legacy">Contenido independiente</option></select></div>
+          <div class="field"><label for="mediaFilter">Tipo multimedia</label><select id="mediaFilter"><option value="">Todos</option><option value="photo">Fotografía</option><option value="video">Vídeo</option><option value="audio">Audio</option><option value="document">Documento</option><option value="freeText">Texto libre</option></select></div>
+          <div class="field"><label for="countryFilter">País</label><select id="countryFilter"><option value="">Todos</option></select></div>
+          <div class="field"><label for="cityFilter">Ciudad</label><select id="cityFilter"><option value="">Todas</option></select></div>
+          <div class="field"><label for="periodFilter">Periodo documentado</label><select id="periodFilter"><option value="">Todos</option></select></div>
+          <div class="field"><label for="userFilter">Usuario que publica</label><select id="userFilter"><option value="">Todos</option></select></div>
+          <div class="field"><label for="projectFilter">Proyecto</label><select id="projectFilter"><option value="">Todos</option></select></div>
+          <div class="filter-group"><strong>Fecha de publicación</strong><div class="date-row"><input id="dateFrom" type="date" aria-label="Desde"><input id="dateTo" type="date" aria-label="Hasta"></div></div>
+          <div id="advancedFilters" class="filter-details-grid"></div>
+        </aside>
+
+        <div class="content">
+          <section id="resumen" class="section">
+            <div class="section-heading"><div><span class="eyebrow">Visión conjunta</span><h2>Resumen general</h2><p>Indicadores de publicaciones, archivos y participación. Las cuentas de usuarios y proyectos son globales; las publicaciones y archivos responden a los filtros.</p></div><span class="scope-label">Conjunto filtrado</span></div>
+            <div id="metrics" class="metric-grid"></div>
+            <div class="chart-grid">
+              <article class="chart-card"><h3>Clasificación exclusiva</h3><p class="chart-note">Cada publicación aparece una sola vez. Denominador: publicaciones filtradas.</p><div id="classificationChart"></div></article>
+              <article class="chart-card"><h3>Distribución multimedia</h3><p class="chart-note">Archivos, no publicaciones. Una publicación puede aportar varios archivos.</p><div id="mediaChart"></div></article>
+              <article class="chart-card wide"><h3>Evolución de publicaciones</h3><p class="chart-note">Fecha de publicación; no representa el periodo documentado.</p><div id="timelineChart"></div></article>
+              <article class="chart-card"><h3>Publicaciones por usuario</h3><p class="chart-note">Autores del conjunto filtrado.</p><div id="userChart"></div></article>
+              <article class="chart-card"><h3>Publicaciones por proyecto</h3><p class="chart-note">Proyecto asociado a cada publicación.</p><div id="projectChart"></div></article>
+              <article class="chart-card wide"><h3>Distribución territorial</h3><p class="chart-note">País declarado en la ficha o en el registro.</p><div id="countryChart"></div></article>
+            </div>
+          </section>
+
+          <section id="represion" class="section">
+            <div class="section-heading"><div><span class="eyebrow">Categorías explícitas</span><h2>Represión</h2><p>Solo se contabilizan valores registrados en la ficha. Las distribuciones multirrespuesta no tienen por qué sumar el 100 %.</p></div><span id="repressionScope" class="scope-label"></span></div>
+            <div class="chart-grid">
+              <article class="chart-card wide"><h3>Acciones de represión</h3><p class="chart-note">Denominador: publicaciones filtradas clasificadas con represión.</p><div id="repressionActionsChart"></div></article>
+              <article class="chart-card"><h3>Grupos reprimidos</h3><p class="chart-note">Multirrespuesta.</p><div id="repressedGroupsChart"></div></article>
+              <article class="chart-card"><h3>Género de las víctimas</h3><p class="chart-note">Multirrespuesta; no se infiere a partir de texto libre.</p><div id="victimGendersChart"></div></article>
+              <article class="chart-card"><h3>Información sobre víctimas</h3><p class="chart-note">Cobertura de campos descriptivos y recuentos, sin interpretar el texto.</p><div id="victimCoverageChart"></div></article>
+              <article class="chart-card"><h3>Argumentos de represión</h3><p class="chart-note">Multirrespuesta.</p><div id="repressionArgumentsChart"></div></article>
+              <article class="chart-card"><h3>Perpetradores</h3><p class="chart-note">Multirrespuesta.</p><div id="perpetratorsChart"></div></article>
+              <article class="chart-card wide"><h3>Años y periodos registrados</h3><p class="chart-note">Valores literales del periodo documentado, trabajos forzados y prisión.</p><div id="repressionPeriodsTable"></div></article>
+            </div>
+          </section>
+
+          <section id="resistencia" class="section">
+            <div class="section-heading"><div><span class="eyebrow">Categorías explícitas</span><h2>Resistencia</h2><p>Las frecuencias cuentan cada publicación una sola vez dentro de cada respuesta seleccionada.</p></div><span id="resistanceScope" class="scope-label"></span></div>
+            <div class="chart-grid">
+              <article class="chart-card wide"><h3>Acciones de resistencia</h3><p class="chart-note">Denominador: publicaciones filtradas clasificadas con resistencia.</p><div id="resistanceActionsChart"></div></article>
+              <article class="chart-card"><h3>Contenidos de demanda</h3><p class="chart-note">Multirrespuesta.</p><div id="demandContentsChart"></div></article>
+              <article class="chart-card"><h3>Tipos de organizadores</h3><p class="chart-note">Multirrespuesta.</p><div id="organizerTypesChart"></div></article>
+              <article class="chart-card"><h3>Género de participantes</h3><p class="chart-note">Multirrespuesta.</p><div id="participantGendersChart"></div></article>
+              <article class="chart-card"><h3>Información sobre participantes</h3><p class="chart-note">Cobertura de campos descriptivos, sin interpretar su contenido.</p><div id="participantCoverageChart"></div></article>
+            </div>
+          </section>
+
+          <section id="reconocimiento" class="section">
+            <div class="section-heading"><div><span class="eyebrow">Reconocimiento y contexto</span><h2>Reconocimiento</h2><p>Las respuestas negativas se distinguen de la ausencia de información.</p></div><span class="scope-label">Conjunto filtrado</span></div>
+            <div class="chart-grid">
+              <article class="chart-card"><h3>Existencia de reconocimiento</h3><p class="chart-note">Distribución exclusiva.</p><div id="recognitionChart"></div></article>
+              <article class="chart-card"><h3>Actores de reconocimiento</h3><p class="chart-note">Multirrespuesta entre respuestas afirmativas.</p><div id="recognitionActorsChart"></div></article>
+              <article class="chart-card"><h3>Formas de reconocimiento</h3><p class="chart-note">Multirrespuesta entre respuestas afirmativas.</p><div id="recognitionFormsChart"></div></article>
+              <article class="chart-card"><h3>Lugares de ocurrencia</h3><p class="chart-note">Multirrespuesta del conjunto filtrado.</p><div id="occurrencePlacesChart"></div></article>
+            </div>
+          </section>
+
+          <section id="territorial" class="section">
+            <div class="section-heading"><div><span class="eyebrow">Lectura espacial</span><h2>Territorial</h2><p>Cada contribución ocupa una entidad geográfica. Las concentraciones agrupan únicamente coordenadas idénticas para su visualización.</p></div><span id="geoScope" class="scope-label"></span></div>
+            <div class="map-shell"><div id="territorialMap" aria-label="Mapa territorial de publicaciones"></div><div id="mapOverlay" class="map-overlay"></div></div>
+            <div class="chart-grid" style="margin-top:12px">
+              <article class="chart-card"><h3>Publicaciones por país</h3><div id="territoryCountryChart"></div></article>
+              <article class="chart-card"><h3>Publicaciones por ciudad</h3><div id="cityChart"></div></article>
+              <article class="chart-card wide"><h3>Clasificación de publicaciones geolocalizadas</h3><div id="geoClassificationChart"></div></article>
+            </div>
+          </section>
+
+          <section id="participacion" class="section">
+            <div class="section-heading"><div><span class="eyebrow">Usuarios y proyectos</span><h2>Participación</h2><p>Los usuarios registrados son una cuenta global. La actividad responde al conjunto filtrado y prioriza userId frente a username.</p></div><span class="scope-label">Global + filtrado</span></div>
+            <div id="participationMetrics" class="metric-grid"></div>
+            <div class="chart-grid">
+              <article class="chart-card"><h3>Actividad por usuario</h3><div id="participationUserChart"></div></article>
+              <article class="chart-card"><h3>Contribuciones y contenidos independientes por usuario</h3><div id="originByUserTable"></div></article>
+              <article class="chart-card"><h3>Participación por proyecto</h3><div id="participationProjectChart"></div></article>
+              <article class="chart-card"><h3>Evolución temporal de actividad</h3><div id="activityTimelineChart"></div></article>
+            </div>
+          </section>
+
+          <section id="exportaciones" class="section">
+            <div class="section-heading"><div><span class="eyebrow">Datos reutilizables</span><h2>Exportaciones</h2><p>CSV UTF-8 compatible con Excel. Las celdas neutralizan fórmulas y cada contribución ocupa una sola fila.</p></div></div>
+            <div class="export-grid"><button class="button secondary" data-export="all" type="button">Todas las publicaciones</button><button class="button secondary" data-export="filtered" type="button">Publicaciones filtradas</button><button class="button secondary" data-export="summary" type="button">Resumen estadístico</button><button class="button secondary" data-export="repression" type="button">Represión</button><button class="button secondary" data-export="resistance" type="button">Resistencia</button><button class="button secondary" data-export="territory" type="button">Territorial</button><button class="button secondary" data-export="participation" type="button">Participación</button></div>
+          </section>
+
+          <section id="explorador" class="section">
+            <div class="section-heading"><div><span class="eyebrow">Evidencias</span><h2>Explorador de publicaciones</h2><p>Consulta de solo lectura de la ficha compartida y todos los archivos asociados.</p></div><span id="explorerCount" class="scope-label"></span></div>
+            <div class="table-tools"><input id="explorerSearch" type="search" placeholder="Buscar en el explorador"><select id="explorerSort"><option value="newest">Más recientes</option><option value="oldest">Más antiguas</option><option value="title">Título</option><option value="user">Usuario</option></select><select id="pageSize"><option value="10">10 por página</option><option value="20" selected>20 por página</option><option value="50">50 por página</option></select></div>
+            <div class="table-wrap"><table class="data-table"><thead><tr><th>Identificador</th><th>Título</th><th>Usuario</th><th>Proyecto</th><th>Clasificación</th><th>Publicación</th><th>Ubicación</th><th>Origen</th><th>Archivos</th><th>Detalle</th></tr></thead><tbody id="explorerBody"></tbody></table></div>
+            <div class="pagination"><span id="pageInfo"></span><div class="pagination-actions"><button id="prevPage" class="button secondary small" type="button">Anterior</button><button id="nextPage" class="button secondary small" type="button">Siguiente</button></div></div>
+            <div class="security-note"><strong>Acceso abierto y limitación del backend:</strong> este dashboard no requiere autenticación. Las rutas GET de contribuciones, archivos, usuarios y proyectos tampoco aplican actualmente middleware de autorización. Además, <code>/auth/users</code> devuelve campos sensibles del modelo; el dashboard los descarta inmediatamente y nunca los guarda ni presenta.</div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <footer class="institutional-footer">
+      <div class="partner-logos" aria-label="Logos institucionales">
+        <a class="logo-link-foro" href="https://www.facebook.com/forosocialsierra/?locale=es_ES" target="_blank" rel="noopener noreferrer" aria-label="Abrir Foro Social de la Sierra">
+          <img src="../../assets/lasierra.png" alt="La Sierra" class="logo-foro">
+        </a>
+        <a href="https://mircouam.com/" target="_blank" rel="noopener noreferrer" aria-label="Abrir MIRCo">
+          <img src="../../assets/Logotipo_MIRCo_Color.png" alt="MIRCo">
+        </a>
+        <a class="logo-link-uam" href="https://www.uam.es/uam/inicio" target="_blank" rel="noopener noreferrer" aria-label="Abrir Universidad Autónoma de Madrid">
+          <img src="../../assets/marcaUAM_AhorizontalColor.png" alt="Universidad Autónoma de Madrid" class="logo-uam">
+        </a>
+        <a class="logo-link-ministerio" href="https://mptmd.gob.es/" target="_blank" rel="noopener noreferrer" aria-label="Abrir Ministerio">
+          <img src="../../assets/ministerio.png" alt="Ministerio" class="logo-ministerio">
+        </a>
+      </div>
+    </footer>
+  </main>
+
+  <dialog id="detailDialog"><div class="dialog-head"><div><h2 id="detailTitle">Detalle</h2><p id="detailSubtitle"></p></div><button id="closeDetail" class="dialog-close" type="button" aria-label="Cerrar">×</button></div><div id="detailBody" class="dialog-body"></div></dialog>
+  <div id="loadingCover" class="loading-cover hidden"><div class="loading-card"><div class="spinner"></div><strong id="loadingText">Cargando datos…</strong></div></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" onerror="this.onerror=null;this.src='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js';"></script>
+  <script data-dashboard-core>
+  (function initDashboardCore(root) {
+    'use strict';
+    const FIELD_ALIASES = {
+      eventTypes: 'fichaEventTypes', occurrencePlaces: 'fichaOccurrencePlaces', occurrencePlaceOther: 'fichaOccurrencePlaceOther', period: 'fichaPeriod', source: 'fichaSource', hasRecognition: 'fichaHasRecognition', recognitionActors: 'fichaRecognitionActors', recognitionActorOther: 'fichaRecognitionActorOther', recognitionForms: 'fichaRecognitionForms', recognitionFormOther: 'fichaRecognitionFormOther', repressionActions: 'fichaRepressionActions', forcedLaborYears: 'fichaForcedLaborYears', prisonYears: 'fichaPrisonYears', repressionActionOther: 'fichaRepressionActionOther', repressedGroups: 'fichaRepressedGroups', repressedGroupOther: 'fichaRepressedGroupOther', victimGenders: 'fichaVictimGenders', victimMenCount: 'fichaVictimMenCount', victimWomenCount: 'fichaVictimWomenCount', victimOtherCount: 'fichaVictimOtherCount', victimInformation: 'fichaVictimInformation', victimNames: 'fichaVictimNames', victimOccupation: 'fichaVictimOccupation', repressionArguments: 'fichaRepressionArguments', repressionArgumentOther: 'fichaRepressionArgumentOther', perpetrators: 'fichaPerpetrators', perpetratorOther: 'fichaPerpetratorOther', resistanceActions: 'fichaResistanceActions', resistanceActionOther: 'fichaResistanceActionOther', demandContents: 'fichaDemandContents', demandContentOther: 'fichaDemandContentOther', organizerTypes: 'fichaOrganizerTypes', organizerTypeOther: 'fichaOrganizerTypeOther', participantGenders: 'fichaParticipantGenders', participantInformation: 'fichaParticipantInformation', participantCount: 'fichaParticipantCount', participantNames: 'fichaParticipantNames', participantOccupation: 'fichaParticipantOccupation'
+    };
+    const ARRAY_FIELDS = new Set(['eventTypes','occurrencePlaces','recognitionActors','recognitionForms','repressionActions','repressedGroups','victimGenders','repressionArguments','perpetrators','resistanceActions','demandContents','organizerTypes','participantGenders']);
+    const SCHEMA_OPTIONS = {
+      repressionActions: ['Detención','Juicio / Consejo de Guerra Sumarísimo','Trabajos forzados','Prisión','Redención de condena','Destierro','Libertad vigilada','Pena de muerte: Fusilamiento','Pena de muerte: Garrote vil','Ejecución extrajudicial (paseíllo)','Secuestro o desaparición','Traslado forzoso de cadáveres','Expropiación','Depuración de puesto de trabajo','Multa','Otra'],
+      repressedGroups: ['Militantes políticos/as','Sindicalistas','Activistas sociales','Mujeres','Personas LGBTIQ+','Jornaleros, campesinos o canteros','Maestros/as o profesorado','Ferroviarios, correos o telegrafistas','Artistas o tipógrafos','Vagos y maleantes','Otros'],
+      victimGenders: ['Hombres','Mujeres','No binario'],
+      repressionArguments: ['Ideológico','Subversión','Terrorismo','Relación familiar','Identidad o expresión sexual','Por su profesión','Otro'],
+      perpetrators: ['Ejército franquista','Falange / Jefe local del Movimiento','Guardia Civil','Policía política','Grupos fascistas locales','Cura','Otro'],
+      resistanceActions: ['Protesta y/o movilización','Actividad de organización política','Sabotajes','Guerrilla / Maqui','Homenaje o reconocimiento','Demanda de exhumación','Acto de exhumación','Otra'],
+      demandContents: ['Memoria histórica / Antifascismo','Derechos y libertades políticas','Derechos de trabajadores/as','Derechos de las mujeres','Demandas sociales','Demandas culturales','Derecho a la diversidad de género y sexual','Otro'],
+      organizerTypes: ['Asociación o movimiento social','Organización política','Sindicato o colectivo de trabajadores/as','Colectivo de mujeres','Colectivo LGTBIQ+','Institución educativa (instituto, colegio o universidad)','Administración pública (Ayuntamiento, CCAA o Gobierno central)','Iniciativa espontánea','Otro'],
+      participantGenders: ['Hombres','Mujeres','No binario'],
+      recognitionActors: ['Asociación memorialista','Otro movimiento social','Institución / ONG','Administración local','Comunidad Autónoma','Gobierno central','Otro actor'],
+      recognitionForms: ['Acto o evento reivindicativo de memoria','Museo o espacio de memoria','Placa conmemorativa, señal o monumento','Nombramiento de calle o plaza','Monumento','Conjunto arquitectónico','Obra de arte o literaria','Otra forma'],
+      occurrencePlaces: ['Espacio público (calle, plaza, etc.)','Cárcel','Juzgado','Reformatorio / Preventivo','Fosa común','Lugar de trabajo','Espacio educativo','Otro']
+    };
+    function parseMaybeJson(value, fallback = null) { if (value === null || value === undefined || value === '') return fallback; if (typeof value !== 'string') return value; try { return JSON.parse(value); } catch (_error) { return value; } }
+    function asArray(value) { const parsed = parseMaybeJson(value, []); if (Array.isArray(parsed)) return [...new Set(parsed.map((item) => String(item ?? '').trim()).filter(Boolean))]; if (parsed === null || parsed === undefined || parsed === '') return []; return String(parsed).split(/\s*[;|]\s*/).map((item) => item.trim()).filter(Boolean); }
+    function text(value) { const parsed = parseMaybeJson(value, ''); if (Array.isArray(parsed)) return parsed.join(', '); if (parsed && typeof parsed === 'object') return JSON.stringify(parsed); return String(parsed ?? '').trim(); }
+    function first(...values) { for (const value of values) { const parsed = parseMaybeJson(value, null); if (Array.isArray(parsed) ? parsed.length : parsed !== null && parsed !== undefined && parsed !== '') return parsed; } return ''; }
+    function normalizeSearch(value) { return String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
+    function normalizeFicha(record = {}) {
+      const raw = parseMaybeJson(record.fichaDescriptiva, null) || parseMaybeJson(record.form, null) || parseMaybeJson(record.formData, null) || {};
+      const ficha = raw && typeof raw === 'object' && !Array.isArray(raw) ? { ...raw } : {};
+      Object.entries(FIELD_ALIASES).forEach(([field, alias]) => { if (ficha[field] === undefined || ficha[field] === null || ficha[field] === '') ficha[field] = record[alias] ?? record[field] ?? (ARRAY_FIELDS.has(field) ? [] : ''); ficha[field] = ARRAY_FIELDS.has(field) ? asArray(ficha[field]) : text(ficha[field]); });
+      const rawPlace = parseMaybeJson(ficha.place, {}) || {};
+      ficha.place = { latitude: first(rawPlace.latitude, record.fichaPlaceLatitude, record.latitude), longitude: first(rawPlace.longitude, record.fichaPlaceLongitude, record.longitude), city: text(first(rawPlace.city, record.fichaPlaceCity, record.city)), country: text(first(rawPlace.country, record.fichaPlaceCountry, record.country)) };
+      ficha.description = text(first(ficha.description, record.fichaDescription, record.description));
+      return ficha;
+    }
+    function coordinate(value, min, max) { if (value === '' || value === null || value === undefined) return null; const number = Number(value); return Number.isFinite(number) && number >= min && number <= max ? number : null; }
+    function safeUrl(value) { try { const url = new URL(String(value || ''), typeof location === 'object' ? location.href : 'https://example.invalid'); return ['http:','https:'].includes(url.protocol) ? url.href : null; } catch (_error) { return null; } }
+    function attachment(type, row = {}, index = 0) { const url = safeUrl(row.secure_url || row.url || row.file || row.image || row.video || row.audio); const body = text(row.textContent); const kind = type === 'text' ? (body ? 'freeText' : 'document') : type; return { id: row.id ?? row._id ?? index, type, kind, title: text(row.title || row.name || `${type} ${index + 1}`), url: kind === 'freeText' ? null : url, textContent: body, unavailable: kind === 'freeText' ? !body : !url }; }
+    function classification(ficha) { const values = asArray(ficha.eventTypes).map(normalizeSearch); const repression = values.some((v) => v.includes('represion')); const resistance = values.some((v) => v.includes('resistencia')); return repression && resistance ? 'both' : repression ? 'repression' : resistance ? 'resistance' : 'unclassified'; }
+    function recognitionValue(value) { const normalized = normalizeSearch(value).trim(); if (!normalized) return 'missing'; if (normalized === 'si' || normalized === 'yes' || normalized === 'true') return 'yes'; if (normalized === 'no' || normalized === 'false') return 'no'; return 'missing'; }
+    function userKey(record) { const id = first(record.userId, record.user_id); return id !== '' ? `id:${id}` : `username:${normalizeSearch(record.username || 'sin usuario').trim()}`; }
+    function baseEntity(record, origin, legacyType, id, ficha, attachments) {
+      const lat = coordinate(first(record.latitude, ficha.place.latitude), -90, 90); const lng = coordinate(first(record.longitude, ficha.place.longitude), -180, 180);
+      const counts = { photo: 0, video: 0, audio: 0, document: 0, freeText: 0 }; attachments.forEach((item) => { counts[item.kind] = (counts[item.kind] || 0) + 1; });
+      return { key: origin === 'contribution' ? `contribution:${id}` : `legacy:${legacyType}:${id}`, id, origin, legacyType, title: text(first(record.title, ficha.description, record.description, record.textContent)) || 'Sin título', description: text(first(record.description, ficha.description)), username: text(record.username) || 'Sin usuario', userId: first(record.userId, record.user_id), userKey: userKey(record), projectId: first(record.projectId, record.project_id), projectName: text(record.projectName) || 'Sin proyecto', publicationDate: first(record.date, record.createdAt, record.registerAt), historicalPeriod: text(ficha.period), city: text(first(record.city, ficha.place.city)) || 'Sin ciudad', country: text(first(record.country, ficha.place.country)) || 'Sin país', locationLabel: text(first(record.location, ficha.occurrencePlaces)) || 'Sin ubicación declarada', latitude: lat, longitude: lng, hasCoordinates: lat !== null && lng !== null, ficha, classification: classification(ficha), recognition: recognitionValue(ficha.hasRecognition), attachments, fileCounts: counts, formSchema: text(record.formSchema), raw: record };
+    }
+    function normalizeLegacy(record, type, index = 0) { const id = record.id ?? record._id ?? index; const ficha = normalizeFicha(record); return baseEntity(record, 'legacy', type, id, ficha, [attachment(type, record, index)]); }
+    function normalizeContribution(record, index = 0) { const id = record.id ?? record._id ?? index; const ficha = normalizeFicha(record); const groups = [['photos','photo'],['videos','video'],['audios','audio'],['texts','text']]; const attachments = groups.flatMap(([field,type]) => (Array.isArray(record[field]) ? record[field] : []).map((row, itemIndex) => attachment(type, row, itemIndex))); return baseEntity(record, 'contribution', null, id, ficha, attachments); }
+    function normalizeSources(sources = {}) { const entities = []; const legacy = sources.legacy || {}; [['photo','photo'],['video','video'],['audio','audio'],['text','text']].forEach(([field,type]) => (legacy[field] || []).filter((record) => record?.contributionId == null).forEach((record,index) => entities.push(normalizeLegacy(record,type,index)))); const seen = new Set(); (sources.contributions || []).forEach((record,index) => { const item = normalizeContribution(record,index); if (!seen.has(item.key)) { seen.add(item.key); entities.push(item); } }); return entities; }
+    function resolveSettledSources(keys, settled) { const data={},availability={},errors={}; keys.forEach((key,index)=>{const result=settled[index];if(result?.status==='fulfilled'){availability[key]='loaded';data[key]=Array.isArray(result.value)?result.value:[];}else{availability[key]='failed';data[key]=[];errors[key]=result?.reason?.message||'No disponible';}});return {data,availability,errors,partial:Object.keys(errors).length>0}; }
+    function entityHasMedia(entity, type) { return Number(entity.fileCounts[type] || 0) > 0; }
+    function selectedMatch(values, selected) { if (!selected || !selected.size) return true; const normalizedValues = asArray(values).map(normalizeSearch); return [...selected].some((choice) => normalizedValues.includes(normalizeSearch(choice))); }
+    function applyFilters(entities, filters = {}) { const query = normalizeSearch(filters.search).trim(); const from = filters.dateFrom ? new Date(`${filters.dateFrom}T00:00:00`).getTime() : null; const to = filters.dateTo ? new Date(`${filters.dateTo}T23:59:59`).getTime() : null; return entities.filter((entity) => { const date = entity.publicationDate ? new Date(entity.publicationDate).getTime() : null; if (filters.classification && entity.classification !== filters.classification) return false; if (filters.recognition && entity.recognition !== filters.recognition) return false; if (filters.origin && entity.origin !== filters.origin) return false; if (filters.media && !entityHasMedia(entity, filters.media)) return false; if (filters.country && entity.country !== filters.country) return false; if (filters.city && entity.city !== filters.city) return false; if (filters.period && entity.historicalPeriod !== filters.period) return false; if (filters.user && entity.userKey !== filters.user) return false; if (filters.project && String(entity.projectId || entity.projectName) !== filters.project) return false; if (from !== null && (!Number.isFinite(date) || date < from)) return false; if (to !== null && (!Number.isFinite(date) || date > to)) return false; if (query && !normalizeSearch([entity.key, entity.title, entity.description, entity.username, entity.projectName, entity.city, entity.country, entity.locationLabel, JSON.stringify(entity.ficha)].join(' ')).includes(query)) return false; for (const field of Object.keys(SCHEMA_OPTIONS)) if (!selectedMatch(entity.ficha[field], filters.multi?.[field])) return false; return true; }); }
+    function frequency(entities, getter) { const counts = new Map(); entities.forEach((entity) => { const values = asArray(getter(entity)); new Set(values).forEach((value) => counts.set(value, (counts.get(value) || 0) + 1)); }); return [...counts.entries()].map(([label,value]) => ({ label, value })).sort((a,b) => b.value - a.value || a.label.localeCompare(b.label,'es')); }
+    function scalarFrequency(entities, getter, missingLabel = '') { const counts = new Map(); entities.forEach((entity) => { const value = text(getter(entity)) || missingLabel; if (value) counts.set(value, (counts.get(value) || 0) + 1); }); return [...counts.entries()].map(([label,value]) => ({ label,value })).sort((a,b) => b.value - a.value || a.label.localeCompare(b.label,'es')); }
+    function classificationRows(entities) { const labels = { repression: 'Solo represión', resistance: 'Solo resistencia', both: 'Ambas', unclassified: 'Sin clasificación' }; return Object.entries(labels).map(([key,label]) => ({ key,label,value: entities.filter((entity) => entity.classification === key).length })); }
+    function mediaCounts(entities) { return entities.reduce((total, entity) => { Object.keys(total).forEach((key) => { total[key] += entity.fileCounts[key] || 0; }); return total; }, { photo:0,video:0,audio:0,document:0,freeText:0 }); }
+    function publicationMetrics(entities) { const media = mediaCounts(entities); return { publications: entities.length, contributions: entities.filter((e) => e.origin === 'contribution').length, historical: entities.filter((e) => e.origin === 'legacy').length, ...media, geolocated: entities.filter((e) => e.hasCoordinates).length, withoutCoordinates: entities.filter((e) => !e.hasCoordinates).length, unclassified: entities.filter((e) => e.classification === 'unclassified').length }; }
+    function uniqueUserActivity(entities) { const map = new Map(); entities.forEach((entity) => { const row = map.get(entity.userKey) || { key: entity.userKey, username: entity.username, total:0, contributions:0, historical:0 }; row.total += 1; row[entity.origin === 'contribution' ? 'contributions' : 'historical'] += 1; map.set(entity.userKey,row); }); return [...map.values()].sort((a,b) => b.total - a.total || a.username.localeCompare(b.username,'es')); }
+    function sanitizeUser(user = {}) { return { userId: user.userId ?? user.id ?? user._id ?? '', username: text(user.username || user.name || user.email), email: text(user.email), isAdmin: Boolean(user.isAdmin ?? user.is_admin), isAnalyst: Boolean(user.isAnalyst ?? user.is_analyst), isCollaborator: Boolean(user.isCollaborator ?? user.is_collaborator), isBlocked: Boolean(user.is_blocked ?? user.isBlocked), registerAt: user.registerAt || user.createdAt || '' }; }
+    function csvCell(value) { let content = value && typeof value === 'object' ? JSON.stringify(value) : String(value ?? ''); if (/^\s*[=+\-@]/.test(content)) content = `'${content}`; return `"${content.replaceAll('"','""')}"`; }
+    function csv(rows, columns) { return `\uFEFF${[columns.map(csvCell).join(';'), ...rows.map((row) => columns.map((column) => csvCell(row[column])).join(';'))].join('\r\n')}`; }
+    function publicationRow(entity) { const typeLabels={photo:'Fotografía',video:'Vídeo',audio:'Audio',text:'Documento o texto'}; return { identifier: entity.key, origin: entity.origin === 'contribution' ? 'Contribución' : 'Contenido independiente', contentType: entity.origin === 'contribution' ? 'Contribución' : (typeLabels[entity.legacyType] || 'Contenido'), title: entity.title, description: entity.description, userId: entity.userId, username: entity.username, projectId: entity.projectId, projectName: entity.projectName, classification: entity.classification, publicationDate: entity.publicationDate, documentedPeriod: entity.historicalPeriod, country: entity.country, city: entity.city, location: entity.locationLabel, latitude: entity.latitude ?? '', longitude: entity.longitude ?? '', photos: entity.fileCounts.photo, videos: entity.fileCounts.video, audios: entity.fileCounts.audio, documents: entity.fileCounts.document, freeTexts: entity.fileCounts.freeText, eventTypes: entity.ficha.eventTypes, fichaDescriptiva: entity.ficha } }
+    root.MemolandDashboardCore = { SCHEMA_OPTIONS, ARRAY_FIELDS, parseMaybeJson, asArray, text, normalizeSearch, normalizeFicha, normalizeLegacy, normalizeContribution, normalizeSources, resolveSettledSources, applyFilters, frequency, scalarFrequency, classificationRows, mediaCounts, publicationMetrics, uniqueUserActivity, sanitizeUser, csvCell, csv, publicationRow, safeUrl };
+  }(typeof globalThis !== 'undefined' ? globalThis : this));
+  </script>
+
+  <script>
+  (() => {
+    'use strict';
+    const Core = window.MemolandDashboardCore;
+    const API_BASE_URL = String(window.MEMOLAND_API_BASE_URL || 'https://www.vocesterritorios.com/apimemoland').replace(/\/+$/, '');
+    const ENDPOINTS = {
+      photo: '/photo/getAllPhotos', video: '/video/getAllVideos', audio: '/audio/getAllAudios', text: '/text/getAllTexts', contributions: '/contributions', users: '/auth/users', projects: '/projects/getProjects'
+    };
+    const SOURCE_LABELS = { photo:'Fotografías', video:'Vídeos', audio:'Audios', text:'Documentos y textos', contributions:'Contribuciones', users:'Usuarios', projects:'Proyectos' };
+    const CONTENT_SOURCES = ['photo','video','audio','text','contributions'];
+    const CSV_PUBLICATION_COLUMNS = ['identifier','origin','contentType','title','description','userId','username','projectId','projectName','classification','publicationDate','documentedPeriod','country','city','location','latitude','longitude','photos','videos','audios','documents','freeTexts','eventTypes','fichaDescriptiva'];
+    const MULTI_FILTER_LABELS = { repressionActions:'Acciones de represión', repressedGroups:'Grupos reprimidos', victimGenders:'Género de víctimas', repressionArguments:'Argumentos de represión', perpetrators:'Perpetradores', resistanceActions:'Acciones de resistencia', demandContents:'Contenidos de demanda', organizerTypes:'Tipos de organizadores', participantGenders:'Género de participantes', recognitionActors:'Actores de reconocimiento', recognitionForms:'Formas de reconocimiento', occurrencePlaces:'Lugares de ocurrencia' };
+    const CLASS_LABELS = { repression:'Solo represión', resistance:'Solo resistencia', both:'Ambas', unclassified:'Sin clasificación' };
+    const state = { entities:[], filtered:[], users:[], projects:[], availability:Object.fromEntries(Object.keys(SOURCE_LABELS).map((key) => [key,'idle'])), errors:{}, filters:{ search:'', classification:'', recognition:'', origin:'', media:'', country:'', city:'', period:'', user:'', project:'', dateFrom:'', dateTo:'', multi:{} }, page:1, pageSize:20, explorerSearch:'', explorerSort:'newest', map:null, layer:null };
+    const $ = (selector) => document.querySelector(selector);
+    const elements = { refreshButton:$('#refreshButton'), lastUpdated:$('#lastUpdated'), dataScope:$('#dataScope'), partialBanner:$('#partialBanner'), sourceGrid:$('#sourceGrid'), filteredCount:$('#filteredCount'), globalSearch:$('#globalSearch'), classificationFilter:$('#classificationFilter'), recognitionFilter:$('#recognitionFilter'), originFilter:$('#originFilter'), mediaFilter:$('#mediaFilter'), countryFilter:$('#countryFilter'), cityFilter:$('#cityFilter'), periodFilter:$('#periodFilter'), userFilter:$('#userFilter'), projectFilter:$('#projectFilter'), dateFrom:$('#dateFrom'), dateTo:$('#dateTo'), advancedFilters:$('#advancedFilters'), resetFilters:$('#resetFilters'), metrics:$('#metrics'), loadingCover:$('#loadingCover'), loadingText:$('#loadingText'), explorerSearch:$('#explorerSearch'), explorerSort:$('#explorerSort'), pageSize:$('#pageSize'), explorerBody:$('#explorerBody'), explorerCount:$('#explorerCount'), pageInfo:$('#pageInfo'), prevPage:$('#prevPage'), nextPage:$('#nextPage'), detailDialog:$('#detailDialog'), detailTitle:$('#detailTitle'), detailSubtitle:$('#detailSubtitle'), detailBody:$('#detailBody'), closeDetail:$('#closeDetail') };
+    function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char])); }
+    function formatNumber(value) { return value === null || value === undefined ? 'No disponible' : new Intl.NumberFormat('es-ES').format(value); }
+    function formatDate(value, withTime = false) { if (!value) return 'Sin fecha'; const date = new Date(value); if (Number.isNaN(date.getTime())) return String(value); return new Intl.DateTimeFormat('es-ES', withTime ? { dateStyle:'medium',timeStyle:'short' } : { dateStyle:'medium' }).format(date); }
+    function setLoading(active, message = 'Cargando datos…') { elements.loadingText.textContent = message; elements.loadingCover.classList.toggle('hidden', !active); }
+    function readHeaders() { return { Accept:'application/json' }; }
+    function readCollection(payload, key) { if (Array.isArray(payload)) return payload; if (Array.isArray(payload?.[key])) return payload[key]; if (Array.isArray(payload?.data)) return payload.data; if (Array.isArray(payload?.result)) return payload.result; return []; }
+    async function fetchJson(path, options = {}) { const response = await fetch(`${API_BASE_URL}${path}`, options); const payload = await response.json().catch(() => ({})); if (!response.ok) { const error = new Error(payload.message || payload.error || `Error HTTP ${response.status}`); error.status = response.status; throw error; } return payload; }
+    async function loadSource(key) { const payload=await fetchJson(ENDPOINTS[key],{headers:readHeaders()}); return readCollection(payload,key === 'photo' ? 'photos' : key === 'video' ? 'videos' : key === 'audio' ? 'audios' : key === 'text' ? 'texts' : key); }
+    async function loadData() { setLoading(true,'Consultando las fuentes de MEMOLAND…'); Object.keys(state.availability).forEach((key) => { state.availability[key]='loading'; delete state.errors[key]; }); renderSources(); const keys=Object.keys(SOURCE_LABELS); const settled=await Promise.allSettled(keys.map(loadSource)); const resolved=Core.resolveSettledSources(keys,settled); state.availability=resolved.availability; state.errors=resolved.errors; const data=resolved.data; const legacy={ photo:data.photo,video:data.video,audio:data.audio,text:data.text }; state.entities=Core.normalizeSources({legacy,contributions:data.contributions}); state.users=(data.users || []).map(Core.sanitizeUser); state.projects=(data.projects || []).map((project) => ({ id:project.id ?? project._id ?? '', name:Core.text(project.name), isVisible:project.isVisible, createdAt:project.createdAt })); elements.lastUpdated.textContent=formatDate(new Date(),true); elements.dataScope.textContent=`${state.entities.length} publicaciones cargadas de las fuentes disponibles`; renderSources(); populateFilters(); renderAdvancedFilters(); applyAndRender(); setLoading(false); }
+    function renderSources() { elements.sourceGrid.innerHTML=Object.entries(SOURCE_LABELS).map(([key,label]) => { const status=state.availability[key]; const text=status==='loaded'?'Disponible':status==='failed'?'No disponible':status==='loading'?'Cargando…':'Pendiente'; return `<div class="source-state ${status}"><strong>${escapeHtml(label)}</strong><span>${escapeHtml(text)}</span></div>`; }).join(''); const failed=Object.keys(state.availability).filter((key) => state.availability[key]==='failed'); elements.partialBanner.classList.toggle('hidden',!failed.length); if (failed.length) elements.partialBanner.innerHTML=`<strong>Carga parcial.</strong><span>No se pudieron consultar: ${failed.map((key) => `${escapeHtml(SOURCE_LABELS[key])} (${escapeHtml(state.errors[key])})`).join(', ')}. Los indicadores dependientes aparecen como no disponibles; el resto continúa operativo.</span>`; }
+    function sortedUnique(values) { return [...new Set(values.map((value) => Core.text(value)).filter((value) => value && !/^sin /i.test(value)))].sort((a,b) => a.localeCompare(b,'es')); }
+    function fillSelect(select, values, label='Todos', valueFn=(value)=>value, labelFn=(value)=>value) { const previous=select.value; select.innerHTML=`<option value="">${escapeHtml(label)}</option>${values.map((value) => `<option value="${escapeHtml(valueFn(value))}">${escapeHtml(labelFn(value))}</option>`).join('')}`; if ([...select.options].some((option) => option.value===previous)) select.value=previous; }
+    function populateFilters() { fillSelect(elements.countryFilter,sortedUnique(state.entities.map((e)=>e.country))); fillSelect(elements.cityFilter,sortedUnique(state.entities.map((e)=>e.city))); fillSelect(elements.periodFilter,sortedUnique(state.entities.map((e)=>e.historicalPeriod))); const users=[...new Map(state.entities.map((e)=>[e.userKey,{key:e.userKey,label:e.username}])).values()].sort((a,b)=>a.label.localeCompare(b.label,'es')); fillSelect(elements.userFilter,users,'Todos',(u)=>u.key,(u)=>u.label); const projects=[...new Map(state.entities.map((e)=>[String(e.projectId || e.projectName),e.projectName])).entries()].filter(([key])=>key); fillSelect(elements.projectFilter,projects,'Todos',(p)=>p[0],(p)=>p[1]); }
+    function renderAdvancedFilters() { elements.advancedFilters.innerHTML=Object.entries(MULTI_FILTER_LABELS).map(([field,label]) => { const observed=Core.frequency(state.entities,(entity)=>entity.ficha[field]).map((row)=>row.label); const options=sortedUnique([...(Core.SCHEMA_OPTIONS[field] || []),...observed]); return `<details class="filter-group"><summary>${escapeHtml(label)}</summary><div class="chip-list">${options.map((option)=>`<button class="filter-chip" type="button" data-multi-field="${field}" data-multi-value="${escapeHtml(option)}" aria-pressed="false">${escapeHtml(option)}</button>`).join('')}</div></details>`; }).join(''); }
+    function readFilters() { state.filters={ search:elements.globalSearch.value, classification:elements.classificationFilter.value, recognition:elements.recognitionFilter.value, origin:elements.originFilter.value, media:elements.mediaFilter.value, country:elements.countryFilter.value, city:elements.cityFilter.value, period:elements.periodFilter.value, user:elements.userFilter.value, project:elements.projectFilter.value, dateFrom:elements.dateFrom.value, dateTo:elements.dateTo.value, multi:state.filters.multi || {} }; }
+    function applyAndRender() { readFilters(); state.filtered=Core.applyFilters(state.entities,state.filters); state.page=1; elements.filteredCount.textContent=formatNumber(state.filtered.length); renderAll(); }
+    function allContentAvailable() { return CONTENT_SOURCES.every((key)=>state.availability[key]==='loaded'); }
+    function metric(label,value,note='',available=true) { return `<article class="metric ${available?'':'unavailable'}"><span>${escapeHtml(label)}</span><strong>${available?formatNumber(value):'No disponible'}</strong><small>${escapeHtml(available?note:'Fuente incompleta')}</small></article>`; }
+    function renderMetrics() { const m=Core.publicationMetrics(state.filtered); const contentAvailable=allContentAvailable(); const photoAvailable=state.availability.photo==='loaded'&&state.availability.contributions==='loaded'; const videoAvailable=state.availability.video==='loaded'&&state.availability.contributions==='loaded'; const audioAvailable=state.availability.audio==='loaded'&&state.availability.contributions==='loaded'; const textAvailable=state.availability.text==='loaded'&&state.availability.contributions==='loaded'; elements.metrics.innerHTML=[metric('Total de publicaciones',m.publications,'Independientes + contribuciones',contentAvailable),metric('Contribuciones',m.contributions,'Publicaciones agrupadas',state.availability.contributions==='loaded'),metric('Publicaciones independientes',m.historical,'Registros individuales',CONTENT_SOURCES.slice(0,4).every((key)=>state.availability[key]==='loaded')),metric('Fotografías',m.photo,'Archivos disponibles',photoAvailable),metric('Vídeos',m.video,'Archivos disponibles',videoAvailable),metric('Audios',m.audio,'Archivos disponibles',audioAvailable),metric('Documentos',m.document,'Archivos documentales',textAvailable),metric('Textos libres',m.freeText,'Testimonios sin archivo',textAvailable),metric('Usuarios registrados',state.users.length,'Cuenta global',state.availability.users==='loaded'),metric('Usuarios colaboradores',state.users.filter((u)=>u.isCollaborator).length,'Cuenta global',state.availability.users==='loaded'),metric('Proyectos',state.projects.length,'Cuenta global',state.availability.projects==='loaded'),metric('Publicaciones geolocalizadas',m.geolocated,`${m.withoutCoordinates} sin coordenadas`,contentAvailable)].join(''); }
+    function renderBarChart(id,rows,options={}) { const node=$(`#${id}`); if (!node) return; const clean=(rows||[]).filter((row)=>row.value>0); if (!clean.length) { node.innerHTML='<div class="empty">No hay datos para el conjunto seleccionado.</div>'; return; } const max=Math.max(...clean.map((row)=>row.value),1); const denominator=Number(options.denominator ?? state.filtered.length); node.innerHTML=`<div class="bar-list">${clean.slice(0,options.limit||18).map((row)=>{ const percent=denominator?row.value/denominator*100:0; const label=options.filterField?`<button class="bar-label" type="button" data-chart-filter="${options.filterField}" data-chart-value="${escapeHtml(row.key||row.label)}" title="Filtrar por ${escapeHtml(row.label)}">${escapeHtml(row.label)}</button>`:`<span class="bar-label" title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</span>`; return `<div class="bar-row">${label}<div class="bar-track"><div class="bar-fill ${escapeHtml(row.key||'')}" style="width:${Math.max(2,row.value/max*100).toFixed(2)}%"></div></div><span class="bar-value">${formatNumber(row.value)} · ${percent.toFixed(1)}%</span></div>`; }).join('')}</div>`; }
+    function timeRows(entities) { const map=new Map(); entities.forEach((entity)=>{ const date=new Date(entity.publicationDate); if (!Number.isNaN(date.getTime())) { const year=String(date.getFullYear()); map.set(year,(map.get(year)||0)+1); } }); return [...map.entries()].sort(([a],[b])=>a.localeCompare(b)).map(([label,value])=>({label,value})); }
+    function renderLineChart(id,rows) { const node=$(`#${id}`); if (!rows.length) { node.innerHTML='<div class="empty">No hay fechas de publicación válidas.</div>'; return; } const width=760,height=220,pad=34,max=Math.max(...rows.map((r)=>r.value),1),step=rows.length>1?(width-pad*2)/(rows.length-1):0; const points=rows.map((row,index)=>({x:pad+index*step,y:height-pad-(row.value/max)*(height-pad*2),...row})); const line=points.map((p)=>`${p.x},${p.y}`).join(' '); const area=`${pad},${height-pad} ${line} ${points.at(-1).x},${height-pad}`; node.innerHTML=`<svg class="line-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Evolución temporal">${[0,.5,1].map((ratio)=>`<line class="grid" x1="${pad}" x2="${width-pad}" y1="${pad+ratio*(height-pad*2)}" y2="${pad+ratio*(height-pad*2)}"></line>`).join('')}<polygon class="area" points="${area}"></polygon><polyline class="series" points="${line}"></polyline>${points.map((p,index)=>`<circle cx="${p.x}" cy="${p.y}" r="4"><title>${escapeHtml(p.label)}: ${p.value}</title></circle>${(rows.length<=12||index%Math.ceil(rows.length/12)===0)?`<text x="${p.x}" y="${height-8}" text-anchor="middle">${escapeHtml(p.label)}</text>`:''}`).join('')}</svg>`; }
+    function keyedFrequency(entities,keyGetter,labelGetter) { const rows=new Map(); entities.forEach((entity)=>{const key=String(keyGetter(entity)||'');const label=String(labelGetter(entity)||'Sin información');const row=rows.get(key)||{key,label,value:0};row.value+=1;rows.set(key,row);});return [...rows.values()].sort((a,b)=>b.value-a.value||a.label.localeCompare(b.label,'es')); }
+    function renderGeneralCharts() { const m=Core.mediaCounts(state.filtered); renderBarChart('classificationChart',Core.classificationRows(state.filtered),{filterField:'classification',denominator:state.filtered.length}); renderBarChart('mediaChart',[{key:'photo',label:'Fotografías',value:m.photo},{key:'video',label:'Vídeos',value:m.video},{key:'audio',label:'Audios',value:m.audio},{key:'document',label:'Documentos',value:m.document},{key:'freeText',label:'Textos libres',value:m.freeText}],{filterField:'media',denominator:Object.values(m).reduce((a,b)=>a+b,0)}); renderLineChart('timelineChart',timeRows(state.filtered)); renderBarChart('userChart',keyedFrequency(state.filtered,(e)=>e.userKey,(e)=>e.username),{filterField:'user',limit:12,denominator:state.filtered.length}); renderBarChart('projectChart',keyedFrequency(state.filtered,(e)=>e.projectId||e.projectName,(e)=>e.projectName),{filterField:'project',limit:12,denominator:state.filtered.length}); renderBarChart('countryChart',Core.scalarFrequency(state.filtered,(e)=>e.country).map((row)=>({...row,key:row.label})),{filterField:'country',limit:16,denominator:state.filtered.length}); }
+    function subsetWith(type) { return state.filtered.filter((entity)=>entity.classification===type||entity.classification==='both'); }
+    function frequencyTable(rows,headers=['Campo','Valor','Publicaciones']) { if (!rows.length) return '<div class="empty">No hay valores registrados.</div>'; return `<table class="frequency-table"><thead><tr>${headers.map((h)=>`<th>${escapeHtml(h)}</th>`).join('')}</tr></thead><tbody>${rows.map((row)=>`<tr><td>${escapeHtml(row.field||'')}</td><td>${escapeHtml(row.label)}</td><td>${formatNumber(row.value)}</td></tr>`).join('')}</tbody></table>`; }
+    function renderRepression() { const items=subsetWith('repression'); $('#repressionScope').textContent=`${items.length} publicaciones con represión`; const charts=[['repressionActionsChart','repressionActions'],['repressedGroupsChart','repressedGroups'],['victimGendersChart','victimGenders'],['repressionArgumentsChart','repressionArguments'],['perpetratorsChart','perpetrators']]; charts.forEach(([id,field])=>renderBarChart(id,Core.frequency(items,(e)=>e.ficha[field]),{filterField:field,denominator:items.length})); renderBarChart('victimCoverageChart',[{label:'Información descriptiva',value:items.filter((e)=>e.ficha.victimInformation).length},{label:'Recuento por género',value:items.filter((e)=>e.ficha.victimMenCount||e.ficha.victimWomenCount||e.ficha.victimOtherCount).length},{label:'Nombres',value:items.filter((e)=>e.ficha.victimNames).length},{label:'Ocupación',value:items.filter((e)=>e.ficha.victimOccupation).length}],{denominator:items.length}); const rows=[...Core.scalarFrequency(items,(e)=>e.ficha.period).map((r)=>({...r,field:'Periodo documentado'})),...Core.scalarFrequency(items,(e)=>e.ficha.forcedLaborYears).map((r)=>({...r,field:'Años de trabajos forzados'})),...Core.scalarFrequency(items,(e)=>e.ficha.prisonYears).map((r)=>({...r,field:'Años de prisión'}))]; $('#repressionPeriodsTable').innerHTML=frequencyTable(rows); }
+    function renderResistance() { const items=subsetWith('resistance'); $('#resistanceScope').textContent=`${items.length} publicaciones con resistencia`; [['resistanceActionsChart','resistanceActions'],['demandContentsChart','demandContents'],['organizerTypesChart','organizerTypes'],['participantGendersChart','participantGenders']].forEach(([id,field])=>renderBarChart(id,Core.frequency(items,(e)=>e.ficha[field]),{filterField:field,denominator:items.length})); const coverage=[{label:'Información descriptiva',value:items.filter((e)=>e.ficha.participantInformation).length},{label:'Número de participantes',value:items.filter((e)=>e.ficha.participantCount).length},{label:'Nombres',value:items.filter((e)=>e.ficha.participantNames).length},{label:'Ocupación',value:items.filter((e)=>e.ficha.participantOccupation).length}]; renderBarChart('participantCoverageChart',coverage,{denominator:items.length}); }
+    function renderRecognition() { const rows=[{key:'yes',label:'Sí',value:state.filtered.filter((e)=>e.recognition==='yes').length},{key:'no',label:'No',value:state.filtered.filter((e)=>e.recognition==='no').length},{key:'missing',label:'Sin información',value:state.filtered.filter((e)=>e.recognition==='missing').length}]; renderBarChart('recognitionChart',rows,{filterField:'recognition',denominator:state.filtered.length}); const yes=state.filtered.filter((e)=>e.recognition==='yes'); renderBarChart('recognitionActorsChart',Core.frequency(yes,(e)=>e.ficha.recognitionActors),{filterField:'recognitionActors',denominator:yes.length}); renderBarChart('recognitionFormsChart',Core.frequency(yes,(e)=>e.ficha.recognitionForms),{filterField:'recognitionForms',denominator:yes.length}); renderBarChart('occurrencePlacesChart',Core.frequency(state.filtered,(e)=>e.ficha.occurrencePlaces),{filterField:'occurrencePlaces',denominator:state.filtered.length}); }
+    function mapColor(classification) { return ({repression:'#a33a43',resistance:'#18746d',both:'#7551a6',unclassified:'#77828a'})[classification]; }
+    function ensureMap() { if (state.map || !window.L) return; state.map=L.map('territorialMap',{preferCanvas:true}).setView([40.2,-3.7],5); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}).addTo(state.map); state.layer=L.layerGroup().addTo(state.map); }
+    function renderMap() { ensureMap(); const geo=state.filtered.filter((e)=>e.hasCoordinates); const missing=state.filtered.length-geo.length; $('#geoScope').textContent=`${geo.length} geolocalizadas · ${missing} sin coordenadas`; $('#mapOverlay').textContent=`${geo.length} publicaciones representadas. ${missing} registros no tienen coordenadas válidas.`; if (!state.map) return; state.layer.clearLayers(); const groups=new Map(); geo.forEach((e)=>{ const key=`${e.latitude.toFixed(6)},${e.longitude.toFixed(6)}`; if (!groups.has(key)) groups.set(key,[]); groups.get(key).push(e); }); const bounds=[]; groups.forEach((items)=>{ const first=items[0]; bounds.push([first.latitude,first.longitude]); const popup=`<strong>${items.length>1?`${items.length} publicaciones`:escapeHtml(first.title)}</strong><br>${escapeHtml(first.city)}, ${escapeHtml(first.country)}<br>${items.slice(0,5).map((item)=>`<button class="map-popup-button" data-detail-key="${escapeHtml(item.key)}">${escapeHtml(item.title)}</button>`).join('<br>')}`; L.circleMarker([first.latitude,first.longitude],{radius:Math.min(18,6+Math.sqrt(items.length)*2),color:mapColor(first.classification),fillColor:mapColor(first.classification),fillOpacity:.72,weight:2}).bindPopup(popup).addTo(state.layer); }); if (bounds.length) state.map.fitBounds(bounds,{padding:[24,24],maxZoom:12}); else state.map.setView([40.2,-3.7],5); setTimeout(()=>state.map?.invalidateSize(),80); renderBarChart('territoryCountryChart',Core.scalarFrequency(state.filtered,(e)=>e.country).map((row)=>({...row,key:row.label})),{filterField:'country',limit:15,denominator:state.filtered.length}); renderBarChart('cityChart',Core.scalarFrequency(state.filtered,(e)=>e.city).map((row)=>({...row,key:row.label})),{filterField:'city',limit:15,denominator:state.filtered.length}); renderBarChart('geoClassificationChart',Core.classificationRows(geo),{filterField:'classification',denominator:geo.length}); }
+    function renderParticipation() { const activity=Core.uniqueUserActivity(state.filtered); const userHasPublished=(user)=>state.entities.some((entity)=>{const sameId=user.userId!==''&&entity.userId!==''&&String(user.userId)===String(entity.userId);const sameUsername=Core.normalizeSearch(user.username).trim()&&Core.normalizeSearch(user.username).trim()===Core.normalizeSearch(entity.username).trim();return sameId||sameUsername;}); const without=state.users.filter((user)=>!userHasPublished(user)).length; elements.participationMetrics.innerHTML=[metric('Usuarios registrados',state.users.length,'Cuenta global',state.availability.users==='loaded'),metric('Usuarios colaboradores',state.users.filter((u)=>u.isCollaborator).length,'Cuenta global',state.availability.users==='loaded'),metric('Usuarios sin publicaciones',without,'Sobre todas las publicaciones cargadas',state.availability.users==='loaded'&&allContentAvailable()),metric('Autores en el filtro',activity.length,'Usuarios con actividad filtrada',allContentAvailable()),metric('Contribuciones filtradas',state.filtered.filter((e)=>e.origin==='contribution').length,'Publicaciones agrupadas',state.availability.contributions==='loaded'),metric('Publicaciones independientes filtradas',state.filtered.filter((e)=>e.origin==='legacy').length,'Registros individuales',CONTENT_SOURCES.slice(0,4).every((key)=>state.availability[key]==='loaded'))].join(''); renderBarChart('participationUserChart',activity.map((row)=>({label:row.username,value:row.total})),{limit:15,denominator:state.filtered.length}); $('#originByUserTable').innerHTML=frequencyTable(activity.slice(0,20).map((row)=>({field:row.username,label:`${row.contributions} contribuciones · ${row.historical} independientes`,value:row.total})),['Usuario','Origen','Total']); renderBarChart('participationProjectChart',Core.scalarFrequency(state.filtered,(e)=>e.projectName),{limit:15,denominator:state.filtered.length}); renderLineChart('activityTimelineChart',timeRows(state.filtered)); }
+    function explorerItems() { const query=Core.normalizeSearch(state.explorerSearch); const items=state.filtered.filter((e)=>!query||Core.normalizeSearch([e.key,e.title,e.username,e.projectName,e.city,e.country,JSON.stringify(e.ficha)].join(' ')).includes(query)); return items.sort((a,b)=>{ if(state.explorerSort==='oldest') return new Date(a.publicationDate||0)-new Date(b.publicationDate||0); if(state.explorerSort==='title') return a.title.localeCompare(b.title,'es'); if(state.explorerSort==='user') return a.username.localeCompare(b.username,'es'); return new Date(b.publicationDate||0)-new Date(a.publicationDate||0); }); }
+    function filesLabel(entity) { const c=entity.fileCounts; return [`${c.photo} foto${c.photo===1?'':'s'}`,`${c.video} vídeo${c.video===1?'':'s'}`,`${c.audio} audio${c.audio===1?'':'s'}`,`${c.document} doc.`,`${c.freeText} texto${c.freeText===1?'':'s'}`].join(' · '); }
+    function renderExplorer() { const items=explorerItems(),pages=Math.max(1,Math.ceil(items.length/state.pageSize)); state.page=Math.min(state.page,pages); const start=(state.page-1)*state.pageSize; const page=items.slice(start,start+state.pageSize); const typeLabels={photo:'Fotografía',video:'Vídeo',audio:'Audio',text:'Documento o texto'}; elements.explorerCount.textContent=`${items.length} publicaciones`; elements.explorerBody.innerHTML=page.length?page.map((e)=>`<tr><td>${escapeHtml(e.key)}</td><td>${escapeHtml(e.title)}</td><td>${escapeHtml(e.username)}</td><td>${escapeHtml(e.projectName)}</td><td><span class="class-pill ${e.classification}">${escapeHtml(CLASS_LABELS[e.classification])}</span></td><td>${escapeHtml(formatDate(e.publicationDate))}</td><td>${escapeHtml(e.city)}, ${escapeHtml(e.country)}</td><td><span class="origin-pill">${e.origin==='contribution'?'Contribución':(typeLabels[e.legacyType]||'Contenido independiente')}</span></td><td>${escapeHtml(filesLabel(e))}</td><td><button class="button ghost small" type="button" data-detail-key="${escapeHtml(e.key)}">Ver</button></td></tr>`).join(''):'<tr><td colspan="10"><div class="empty">No hay publicaciones que mostrar.</div></td></tr>'; elements.pageInfo.textContent=`Página ${state.page} de ${pages} · ${items.length} resultados`; elements.prevPage.disabled=state.page<=1; elements.nextPage.disabled=state.page>=pages; }
+    function detailField(label,value,wide=false) { const display=Array.isArray(value)?value.join(', '):value&&typeof value==='object'?JSON.stringify(value,null,2):String(value??''); return `<div class="detail-field ${wide?'wide':''}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(display||'Sin información')}</strong></div>`; }
+    function renderAttachment(item) { const title=escapeHtml(item.title||item.kind); if (item.kind==='freeText') return `<article class="attachment"><strong>${title}</strong><p>${escapeHtml(item.textContent||'Texto no disponible')}</p></article>`; if (!item.url) return `<article class="attachment"><strong>${title}</strong><p>Archivo remoto no disponible.</p></article>`; if(item.type==='photo') return `<article class="attachment"><strong>${title}</strong><img src="${escapeHtml(item.url)}" alt="${title}" loading="lazy"><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">Abrir fotografía</a></article>`; if(item.type==='video') return `<article class="attachment"><strong>${title}</strong><video src="${escapeHtml(item.url)}" controls preload="metadata"></video><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">Abrir vídeo</a></article>`; if(item.type==='audio') return `<article class="attachment"><strong>${title}</strong><audio src="${escapeHtml(item.url)}" controls preload="metadata"></audio><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">Abrir audio</a></article>`; return `<article class="attachment"><strong>${title}</strong><p>Documento asociado</p><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">Abrir documento</a></article>`; }
+    function openDetail(key) { const e=state.entities.find((item)=>item.key===key); if(!e)return; elements.detailTitle.textContent=e.title; elements.detailSubtitle.textContent=`${e.key} · ${e.origin==='contribution'?'Contribución':'Contenido independiente'} · solo lectura`; const fields=[['Descripción',e.description,true],['Usuario',e.username],['Proyecto',e.projectName],['Clasificación',CLASS_LABELS[e.classification]],['Fecha de publicación',formatDate(e.publicationDate)],['Periodo documentado',e.historicalPeriod],['Ubicación',e.locationLabel,true],['Ciudad',e.city],['País',e.country],['Coordenadas',e.hasCoordinates?`${e.latitude}, ${e.longitude}`:'Sin coordenadas'],...Object.entries(e.ficha).filter(([key])=>!['description','place'].includes(key)).map(([key,value])=>[key,value,Array.isArray(value)||String(value||'').length>80])]; elements.detailBody.innerHTML=`<div class="detail-grid">${fields.map((f)=>detailField(...f)).join('')}</div><h3>Archivos asociados</h3><div class="attachments">${e.attachments.length?e.attachments.map(renderAttachment).join(''):'<div class="empty">No hay archivos asociados disponibles.</div>'}</div>`; elements.detailDialog.showModal(); }
+    function renderAll() { renderMetrics(); renderGeneralCharts(); renderRepression(); renderResistance(); renderRecognition(); renderMap(); renderParticipation(); renderExplorer(); }
+    function toggleMulti(field,value,button) { if(!state.filters.multi[field]) state.filters.multi[field]=new Set(); const selected=state.filters.multi[field]; if(selected.has(value)) selected.delete(value); else selected.add(value); button.setAttribute('aria-pressed',String(selected.has(value))); applyAndRender(); }
+    function setChartFilter(field,value) { const simple={classification:elements.classificationFilter,recognition:elements.recognitionFilter,media:elements.mediaFilter,country:elements.countryFilter,city:elements.cityFilter,user:elements.userFilter,project:elements.projectFilter}; if (simple[field]) { const select=simple[field]; select.value=select.value===value?'':value; } else { if(!state.filters.multi[field])state.filters.multi[field]=new Set(); state.filters.multi[field].clear(); state.filters.multi[field].add(value); elements.advancedFilters.querySelectorAll(`[data-multi-field="${CSS.escape(field)}"]`).forEach((button)=>button.setAttribute('aria-pressed',String(button.dataset.multiValue===value))); } applyAndRender(); document.querySelector('#explorador').scrollIntoView({behavior:'smooth'}); }
+    function resetFilters() { elements.globalSearch.value=''; [elements.classificationFilter,elements.recognitionFilter,elements.originFilter,elements.mediaFilter,elements.countryFilter,elements.cityFilter,elements.periodFilter,elements.userFilter,elements.projectFilter].forEach((select)=>select.value=''); elements.dateFrom.value=''; elements.dateTo.value=''; state.filters.multi={}; elements.advancedFilters.querySelectorAll('.filter-chip').forEach((button)=>button.setAttribute('aria-pressed','false')); applyAndRender(); }
+    function downloadCsv(content,filename) { const blob=new Blob([content],{type:'text/csv;charset=utf-8'}); const url=URL.createObjectURL(blob); const link=document.createElement('a'); link.href=url; link.download=filename; document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url); }
+    function categoryExport(items,fields) { const rows=[]; fields.forEach(([field,label])=>Core.frequency(items,(e)=>e.ficha[field]).forEach((row)=>rows.push({section:label,category:row.label,publications:row.value,denominator:items.length,percentage:items.length?(row.value/items.length*100).toFixed(2):'0.00'}))); return Core.csv(rows,['section','category','publications','denominator','percentage']); }
+    function summaryExportRows() { const m=Core.publicationMetrics(state.filtered); const independentAvailable=CONTENT_SOURCES.slice(0,4).every((key)=>state.availability[key]==='loaded'); const textAvailable=state.availability.text==='loaded'&&state.availability.contributions==='loaded'; const rows=[['publications',m.publications,allContentAvailable()],['contributions',m.contributions,state.availability.contributions==='loaded'],['independentPublications',m.historical,independentAvailable],['photos',m.photo,state.availability.photo==='loaded'&&state.availability.contributions==='loaded'],['videos',m.video,state.availability.video==='loaded'&&state.availability.contributions==='loaded'],['audios',m.audio,state.availability.audio==='loaded'&&state.availability.contributions==='loaded'],['documents',m.document,textAvailable],['freeTexts',m.freeText,textAvailable],['geolocated',m.geolocated,allContentAvailable()],['withoutCoordinates',m.withoutCoordinates,allContentAvailable()],['unclassified',m.unclassified,allContentAvailable()]].map(([indicator,value,available])=>({indicator,value:available?value:'No disponible',scope:'publicaciones filtradas'})); rows.push({indicator:'registeredUsers',value:state.availability.users==='loaded'?state.users.length:'No disponible',scope:'global'},{indicator:'collaborators',value:state.availability.users==='loaded'?state.users.filter((u)=>u.isCollaborator).length:'No disponible',scope:'global'},{indicator:'projects',value:state.availability.projects==='loaded'?state.projects.length:'No disponible',scope:'global'}); return rows; }
+    function exportData(type) { const stamp=new Date().toISOString().slice(0,10); if(type==='all'||type==='filtered'){const items=type==='all'?state.entities:state.filtered;return downloadCsv(Core.csv(items.map(Core.publicationRow),CSV_PUBLICATION_COLUMNS),`memoland_publicaciones_${type}_${stamp}.csv`);} if(type==='summary')return downloadCsv(Core.csv(summaryExportRows(),['indicator','value','scope']),`memoland_resumen_${stamp}.csv`); if(type==='repression')return downloadCsv(categoryExport(subsetWith('repression'),[['repressionActions','Acciones'],['repressedGroups','Grupos reprimidos'],['victimGenders','Género de víctimas'],['repressionArguments','Argumentos'],['perpetrators','Perpetradores']]),`memoland_represion_${stamp}.csv`); if(type==='resistance')return downloadCsv(categoryExport(subsetWith('resistance'),[['resistanceActions','Acciones'],['demandContents','Demandas'],['organizerTypes','Organizadores'],['participantGenders','Género de participantes']]),`memoland_resistencia_${stamp}.csv`); if(type==='territory'){const rows=state.filtered.map((e)=>({identifier:e.key,country:e.country,city:e.city,latitude:e.latitude??'',longitude:e.longitude??'',classification:e.classification,geolocated:e.hasCoordinates}));return downloadCsv(Core.csv(rows,['identifier','country','city','latitude','longitude','classification','geolocated']),`memoland_territorial_${stamp}.csv`);} if(type==='participation'){const rows=Core.uniqueUserActivity(state.filtered).map((row)=>({key:row.key,username:row.username,total:row.total,contribuciones:row.contributions,independientes:row.historical}));return downloadCsv(Core.csv(rows,['key','username','total','contribuciones','independientes']),`memoland_participacion_${stamp}.csv`);} }
+    elements.refreshButton.addEventListener('click',loadData); elements.resetFilters.addEventListener('click',resetFilters);
+    [elements.classificationFilter,elements.recognitionFilter,elements.originFilter,elements.mediaFilter,elements.countryFilter,elements.cityFilter,elements.periodFilter,elements.userFilter,elements.projectFilter,elements.dateFrom,elements.dateTo].forEach((node)=>node.addEventListener('change',applyAndRender)); let searchTimer; elements.globalSearch.addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(applyAndRender,180);});
+    elements.advancedFilters.addEventListener('click',(event)=>{const button=event.target.closest('[data-multi-field]');if(button)toggleMulti(button.dataset.multiField,button.dataset.multiValue,button);}); document.addEventListener('click',(event)=>{const filter=event.target.closest('[data-chart-filter]');if(filter)setChartFilter(filter.dataset.chartFilter,filter.dataset.chartValue);const detail=event.target.closest('[data-detail-key]');if(detail)openDetail(detail.dataset.detailKey);const exportButton=event.target.closest('[data-export]');if(exportButton)exportData(exportButton.dataset.export);});
+    elements.explorerSearch.addEventListener('input',()=>{state.explorerSearch=elements.explorerSearch.value;state.page=1;renderExplorer();}); elements.explorerSort.addEventListener('change',()=>{state.explorerSort=elements.explorerSort.value;state.page=1;renderExplorer();}); elements.pageSize.addEventListener('change',()=>{state.pageSize=Number(elements.pageSize.value);state.page=1;renderExplorer();}); elements.prevPage.addEventListener('click',()=>{state.page=Math.max(1,state.page-1);renderExplorer();}); elements.nextPage.addEventListener('click',()=>{state.page+=1;renderExplorer();}); elements.closeDetail.addEventListener('click',()=>elements.detailDialog.close()); elements.detailDialog.addEventListener('click',(event)=>{if(event.target===elements.detailDialog)elements.detailDialog.close();});
+    loadData().catch((error)=>{setLoading(false);elements.partialBanner.classList.remove('hidden');elements.partialBanner.textContent=error.message||'No se pudieron cargar los datos del dashboard.';});
+  })();
+  </script>
+</body>
+</html>

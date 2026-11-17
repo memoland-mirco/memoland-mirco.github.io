@@ -1023,6 +1023,116 @@
         grid-column: auto;
       }
     }
+    .contribution-admin-card .card-body {
+      display: grid;
+      gap: 12px;
+    }
+
+    .contribution-cover {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+      background: #eef2f3;
+      cursor: zoom-in;
+    }
+
+    .attachment-summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .attachment-management-list {
+      display: grid;
+      gap: 7px;
+      margin-top: 12px;
+    }
+
+    .attachment-management-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+    }
+
+    .attachment-admin-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .attachment-admin-grid label,
+    .admin-selected-files {
+      display: grid;
+      gap: 6px;
+    }
+
+    .admin-file-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      padding: 8px;
+      border-radius: 8px;
+      background: #f3f6f7;
+    }
+
+    .attachment-dialog {
+      max-width: 820px;
+    }
+
+    .contribution-detail .media-card {
+      box-shadow: none;
+      border: 0;
+      padding: 0;
+    }
+
+    .contribution-badge {
+      display: inline-flex;
+      padding: 5px 9px;
+      border-radius: 999px;
+      background: #e8f7f6;
+      color: #08736f;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .contribution-ficha,
+    .contribution-group {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+    }
+
+    .contribution-attachment-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 10px;
+    }
+
+    .contribution-attachment {
+      min-width: 0;
+      display: grid;
+      gap: 8px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+    }
+
+    .contribution-text {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    @media (max-width: 760px) {
+      .attachment-admin-grid {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
@@ -1078,6 +1188,7 @@
             <button class="tab" type="button" data-tab="videos">Videos</button>
             <button class="tab" type="button" data-tab="texts">Textos</button>
             <button class="tab" type="button" data-tab="audios">Audios</button>
+            <button class="tab" type="button" data-tab="contributions">Aportaciones</button>
             <button class="tab" type="button" data-tab="users">Usuarios</button>
           </div>
 
@@ -1098,6 +1209,15 @@
                 <option value="newest">Mas reciente</option>
                 <option value="oldest">Mas antiguo</option>
                 <option value="user">Usuario / email</option>
+              </select>
+            </div>
+            <div class="field hidden" id="availabilityField">
+              <label for="availabilityFilter">Disponibilidad</label>
+              <select id="availabilityFilter">
+                <option value="all">Todos los archivos</option>
+                <option value="available">Disponibles</option>
+                <option value="partial">Disponibilidad parcial</option>
+                <option value="empty">Sin archivos</option>
               </select>
             </div>
             <button id="csvButton" class="button ghost" type="button">Descargar CSV</button>
@@ -1153,11 +1273,1116 @@
         </div>
       </section>
     </div>
+    <div id="attachmentModal" class="editor-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="attachmentModalTitle">
+      <section class="editor-dialog attachment-dialog">
+        <header class="editor-header">
+          <h2 id="attachmentModalTitle">Añadir adjuntos</h2>
+          <button id="closeAttachmentButton" class="button ghost" type="button">Cerrar</button>
+        </header>
+        <div class="editor-form">
+          <p class="editor-help">Los archivos se incorporarán a la aportación seleccionada.</p>
+          <div class="attachment-admin-grid">
+            <label>Fotografías<input id="adminPhotosInput" type="file" accept=".jpg,.jpeg,.png,.webp,.heic,.heif,image/*" multiple></label>
+            <label>Vídeos<input id="adminVideosInput" type="file" accept=".mp4,.mov,.webm,.m4v,video/*" multiple></label>
+            <label>Audios<input id="adminAudiosInput" type="file" accept=".mp3,.m4a,.wav,.aac,.ogg,.webm,audio/*" multiple></label>
+            <label>Documentos<input id="adminDocumentsInput" type="file" accept=".pdf,.txt,.rtf,.doc,.docx,.odt" multiple></label>
+          </div>
+          <div id="adminSelectedFiles" class="admin-selected-files"></div>
+          <label for="adminTextContent">Texto libre opcional</label>
+          <textarea id="adminTextContent" rows="5"></textarea>
+          <p id="attachmentError" class="delete-error hidden" role="alert"></p>
+          <div class="editor-actions">
+            <button id="cancelAttachmentButton" class="button ghost" type="button">Cancelar</button>
+            <button id="saveAttachmentButton" class="button" type="button">Añadir adjuntos</button>
+          </div>
+        </div>
+      </section>
+    </div>
   </main>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" onerror="this.onerror=null;this.src='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js';"></script>
+  <script data-memoland-module="api-client">
+(function initMemolandApiClient(root, factory) {
+  const api = factory();
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  if (root) root.MemolandApiClient = api;
+}(typeof globalThis !== 'undefined' ? globalThis : this, function createMemolandApiClient() {
+  'use strict';
+
+  const DEFAULT_API_BASE_URL = 'https://www.vocesterritorios.com/apimemoland';
+  const SOURCES = Object.freeze([
+    { key: 'photo', path: '/photo/getAllPhotos', responseKey: 'photos', legacy: true },
+    { key: 'video', path: '/video/getAllVideos', responseKey: 'videos', legacy: true },
+    { key: 'audio', path: '/audio/getAllAudios', responseKey: 'audios', legacy: true },
+    { key: 'text', path: '/text/getAllTexts', responseKey: 'texts', legacy: true },
+    { key: 'contributions', path: '/contributions', responseKey: 'contributions', legacy: false }
+  ]);
+
+  function resolveApiBaseUrl(value) {
+    const configured = String(value || '').trim();
+    return (configured || DEFAULT_API_BASE_URL).replace(/\/+$/, '');
+  }
+
+  function readCollection(payload, responseKey) {
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.[responseKey])) return payload[responseKey];
+    if (Array.isArray(payload?.data)) return payload.data;
+    if (Array.isArray(payload?.result)) return payload.result;
+    return [];
+  }
+
+  async function requestJson(url, fetchImpl) {
+    const response = await fetchImpl(url, { headers: { Accept: 'application/json' } });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const error = new Error(payload?.message || payload?.error || `Error HTTP ${response.status}`);
+      error.status = response.status;
+      throw error;
+    }
+    return payload;
+  }
+
+  async function fetchContentSources(options = {}) {
+    const fetchImpl = options.fetchImpl || (typeof fetch === 'function' ? fetch.bind(globalThis) : null);
+    if (!fetchImpl) throw new Error('No existe una implementacion de fetch disponible.');
+
+    const apiBaseUrl = resolveApiBaseUrl(options.apiBaseUrl);
+    const settled = await Promise.allSettled(
+      SOURCES.map((source) => requestJson(`${apiBaseUrl}${source.path}`, fetchImpl))
+    );
+    const legacy = { photo: [], video: [], audio: [], text: [] };
+    let contributions = [];
+    const errors = [];
+    const loadedSources = [];
+
+    settled.forEach((result, index) => {
+      const source = SOURCES[index];
+      if (result.status === 'rejected') {
+        errors.push({
+          source: source.key,
+          path: source.path,
+          status: result.reason?.status ?? null,
+          message: result.reason?.message || 'No se pudo cargar esta fuente.'
+        });
+        return;
+      }
+
+      const records = readCollection(result.value, source.responseKey);
+      loadedSources.push(source.key);
+      if (source.legacy) legacy[source.key] = records;
+      else contributions = records;
+    });
+
+    return {
+      apiBaseUrl,
+      legacy,
+      contributions,
+      errors,
+      loadedSources,
+      partial: errors.length > 0
+    };
+  }
+
+  return {
+    DEFAULT_API_BASE_URL,
+    SOURCES,
+    resolveApiBaseUrl,
+    readCollection,
+    requestJson,
+    fetchContentSources
+  };
+}));
+  </script>
+  <script data-memoland-module="content-normalizer">
+(function initMemolandContent(root, factory) {
+  const api = factory();
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  if (root) root.MemolandContent = api;
+}(typeof globalThis !== 'undefined' ? globalThis : this, function createMemolandContent() {
+  'use strict';
+
+  const LEGACY_MEDIA_TYPES = Object.freeze(['photo', 'video', 'audio', 'text']);
+  const VALID_MARKER_ICONS = new Set([
+    'represion_condena',
+    'represion_detencion_juicio',
+    'represion_expropiacion',
+    'represion_exprociacion',
+    'represion_fosa_comun',
+    'represion_muerte',
+    'resistencia_accion_directa',
+    'resistencia_accion_politica',
+    'resistencia_exhumacion',
+    'resistencia_homenaje_reconocimiento',
+    'resistencia_movilizacion_social'
+  ]);
+
+  function parseMaybeJson(value, fallback = null) {
+    if (value === undefined || value === null || value === '') return fallback;
+    if (typeof value !== 'string') return value;
+    try {
+      return JSON.parse(value);
+    } catch (_error) {
+      return fallback;
+    }
+  }
+
+  function asArray(value) {
+    const parsed = parseMaybeJson(value, value);
+    if (Array.isArray(parsed)) return parsed.flatMap(asArray).filter(Boolean);
+    if (typeof parsed === 'string' && parsed.trim()) {
+      return parsed.split(',').map((item) => item.trim()).filter(Boolean);
+    }
+    return parsed === undefined || parsed === null || parsed === '' ? [] : [String(parsed)];
+  }
+
+  function toCoordinate(value, limit) {
+    if (value === '' || value === null || value === undefined) return null;
+    const numeric = Number(value);
+    return Number.isFinite(numeric) && Math.abs(numeric) <= limit ? numeric : null;
+  }
+
+  function getRecordId(record, fallback) {
+    return record?.id ?? record?._id ?? record?.public_id ?? fallback;
+  }
+
+  function readFicha(record = {}) {
+    const candidates = [record.fichaDescriptiva, record.formData, record.form];
+    for (const candidate of candidates) {
+      const parsed = parseMaybeJson(candidate, null);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+    }
+    return {};
+  }
+
+  function normalizeMarkerIcon(value) {
+    const filename = String(value || '').trim().split('/').pop().replace(/\.png(?:[?#].*)?$/i, '');
+    if (!VALID_MARKER_ICONS.has(filename)) return null;
+    return filename === 'represion_exprociacion' ? 'represion_expropiacion' : filename;
+  }
+
+  function getManualMarkerIcon(record = {}, ficha = readFicha(record)) {
+    const candidates = [
+      ficha.markerIcon,
+      ficha.mapIcon,
+      record.markerIcon,
+      record.mapIcon,
+      record.icon,
+      record.iconName
+    ];
+    for (const candidate of candidates) {
+      const normalized = normalizeMarkerIcon(candidate);
+      if (normalized) return normalized;
+    }
+    return null;
+  }
+
+  function getLocation(record = {}, ficha = readFicha(record)) {
+    const place = ficha.place && typeof ficha.place === 'object' ? ficha.place : {};
+    const latitude = toCoordinate(record.latitude ?? record.fichaPlaceLatitude ?? place.latitude, 90);
+    const longitude = toCoordinate(record.longitude ?? record.fichaPlaceLongitude ?? place.longitude, 180);
+    const city = record.city || record.fichaPlaceCity || place.city || '';
+    const country = record.country || record.fichaPlaceCountry || place.country || '';
+    return {
+      label: record.location || record.ubicacion || asArray(ficha.occurrencePlaces).join(', ') || [city, country].filter(Boolean).join(', '),
+      city,
+      country,
+      latitude,
+      longitude,
+      hasCoordinates: latitude !== null && longitude !== null
+    };
+  }
+
+  function attachmentFromRecord(record = {}, type, fallbackId) {
+    const id = getRecordId(record, fallbackId);
+    const secureUrl = typeof record.secure_url === 'string' ? record.secure_url.trim() : '';
+    const fallbackUrl = typeof record.url === 'string' ? record.url.trim() : '';
+    const isText = type === 'text';
+    const textContent = record.textContent || record.content || '';
+    const documentUrl = secureUrl || (record.public_id && fallbackUrl) || '';
+    const url = isText ? (documentUrl || null) : (secureUrl || fallbackUrl || null);
+    const kind = isText && documentUrl ? 'document' : type;
+    return {
+      key: `${type}:${id}`,
+      id,
+      type,
+      kind,
+      contributionId: record.contributionId ?? null,
+      title: record.title || record.name || '',
+      description: record.description || '',
+      publicId: record.public_id || null,
+      secureUrl: secureUrl || null,
+      url,
+      textContent,
+      hasRemoteFile: Boolean(url),
+      unavailable: isText ? !url && !String(textContent).trim() : !url,
+      raw: record
+    };
+  }
+
+  function normalizeLegacyContent(record = {}, type, index = 0) {
+    if (!LEGACY_MEDIA_TYPES.includes(type)) throw new Error(`Tipo legacy no soportado: ${type}`);
+    const id = getRecordId(record, index);
+    const fichaDescriptiva = readFicha(record);
+    const location = getLocation(record, fichaDescriptiva);
+    const attachment = attachmentFromRecord(record, type, id);
+    return {
+      ...record,
+      key: `legacy:${type}:${id}`,
+      id,
+      origin: 'legacy',
+      contributionId: null,
+      legacyMediaType: type,
+      __mediaType: type,
+      mediaTypes: [type],
+      username: record.username || record.userName || record.user?.username || '',
+      userId: record.userId ?? null,
+      projectId: record.projectId ?? null,
+      projectName: record.projectName || '',
+      title: record.title || record.name || fichaDescriptiva.title || '',
+      description: record.description || fichaDescriptiva.description || '',
+      date: record.date || record.createdAt || record.updatedAt || null,
+      locationLabel: location.label,
+      location,
+      city: location.city,
+      country: location.country,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      markerIconId: getManualMarkerIcon(record, fichaDescriptiva),
+      formSchema: record.formSchema || 'ficha_descriptiva_memoland_v1',
+      fichaDescriptiva,
+      attachments: [attachment],
+      capabilities: {
+        view: true,
+        editIndividual: true,
+        deleteIndividual: true,
+        editShared: false,
+        deleteEntity: false
+      },
+      raw: record
+    };
+  }
+
+  function normalizeContribution(contribution = {}, index = 0) {
+    const id = getRecordId(contribution, index);
+    const fichaDescriptiva = readFicha(contribution);
+    const location = getLocation(contribution, fichaDescriptiva);
+    const attachmentGroups = [
+      ['photos', 'photo'],
+      ['videos', 'video'],
+      ['audios', 'audio'],
+      ['texts', 'text']
+    ];
+    const attachments = attachmentGroups.flatMap(([field, type]) => (
+      Array.isArray(contribution[field])
+        ? contribution[field].map((record, attachmentIndex) => attachmentFromRecord(record, type, `${id}-${attachmentIndex}`))
+        : []
+    ));
+    const mediaTypes = [...new Set(attachments.map((attachment) => attachment.type))];
+    return {
+      ...contribution,
+      key: `contribution:${id}`,
+      id,
+      origin: 'contribution',
+      contributionId: id,
+      __mediaType: 'contribution',
+      mediaTypes,
+      username: contribution.username || '',
+      userId: contribution.userId ?? null,
+      projectId: contribution.projectId ?? null,
+      projectName: contribution.projectName || '',
+      title: contribution.title || fichaDescriptiva.title || fichaDescriptiva.description || '',
+      description: contribution.description || fichaDescriptiva.description || '',
+      date: contribution.date || contribution.createdAt || contribution.updatedAt || null,
+      locationLabel: location.label,
+      location,
+      city: location.city,
+      country: location.country,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      markerIconId: getManualMarkerIcon(contribution, fichaDescriptiva),
+      formSchema: contribution.formSchema || 'ficha_descriptiva_memoland_v1',
+      fichaDescriptiva,
+      attachments,
+      capabilities: {
+        view: true,
+        editIndividual: false,
+        deleteIndividual: false,
+        editShared: true,
+        deleteEntity: true,
+        addAttachment: true,
+        deleteAttachment: true
+      },
+      raw: contribution
+    };
+  }
+
+  function isHistoricalRecord(record) {
+    return record?.contributionId === null || record?.contributionId === undefined;
+  }
+
+  function filterHistoricalRecords(records = []) {
+    return (Array.isArray(records) ? records : []).filter(isHistoricalRecord);
+  }
+
+  function normalizeContentSources({ legacy = {}, contributions = [] } = {}) {
+    const entities = [];
+    LEGACY_MEDIA_TYPES.forEach((type) => {
+      filterHistoricalRecords(legacy[type]).forEach((record, index) => {
+        entities.push(normalizeLegacyContent(record, type, index));
+      });
+    });
+    (Array.isArray(contributions) ? contributions : []).forEach((record, index) => {
+      entities.push(normalizeContribution(record, index));
+    });
+    return entities;
+  }
+
+  function normalizeText(value) {
+    return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+  }
+
+  function getEntityEventTypes(entity = {}) {
+    const ficha = entity.fichaDescriptiva || readFicha(entity);
+    return asArray(entity.fichaEventTypes || ficha.eventTypes || entity.eventTypes || entity.category || entity.accionObservada);
+  }
+
+  function entityMatchesMediaType(entity, mediaType) {
+    if (!mediaType) return true;
+    return Array.isArray(entity?.mediaTypes) && entity.mediaTypes.includes(mediaType);
+  }
+
+  function entityMatchesEventFilter(entity, eventType) {
+    if (!eventType) return true;
+    const expected = normalizeText(eventType);
+    return getEntityEventTypes(entity).some((value) => normalizeText(value) === expected);
+  }
+
+  function getDistanceKm(first, second) {
+    const values = [first?.latitude, first?.longitude, second?.latitude, second?.longitude];
+    if (values.some((value) => value === null || value === undefined || value === '')) return Infinity;
+    const [lat1, lon1, lat2, lon2] = values.map(Number);
+    if (![lat1, lon1, lat2, lon2].every(Number.isFinite)) return Infinity;
+    const radiusKm = 6371;
+    const latitudeDistance = ((lat2 - lat1) * Math.PI) / 180;
+    const longitudeDistance = ((lon2 - lon1) * Math.PI) / 180;
+    const a = Math.sin(latitudeDistance / 2) ** 2 +
+      Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(longitudeDistance / 2) ** 2;
+    return radiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  function entityMatchesDistanceFilter(entity, locationFilter) {
+    if (!locationFilter) return true;
+    return getDistanceKm(entity.location, locationFilter.coordinate) <= Number(locationFilter.radiusKm);
+  }
+
+  function groupEntitiesByCoordinate(entities = []) {
+    const groups = new Map();
+    entities.forEach((entity) => {
+      const latitude = toCoordinate(entity?.location?.latitude ?? entity?.latitude, 90);
+      const longitude = toCoordinate(entity?.location?.longitude ?? entity?.longitude, 180);
+      if (latitude === null || longitude === null) return;
+      const coordinateKey = `${latitude.toFixed(6)},${longitude.toFixed(6)}`;
+      if (!groups.has(coordinateKey)) {
+        groups.set(coordinateKey, {
+          key: `coordinate:${coordinateKey}`,
+          latitude,
+          longitude,
+          entities: []
+        });
+      }
+      groups.get(coordinateKey).entities.push(entity);
+    });
+    return [...groups.values()];
+  }
+
+  return {
+    LEGACY_MEDIA_TYPES,
+    VALID_MARKER_ICONS,
+    parseMaybeJson,
+    asArray,
+    toCoordinate,
+    readFicha,
+    normalizeMarkerIcon,
+    getManualMarkerIcon,
+    getLocation,
+    attachmentFromRecord,
+    normalizeLegacyContent,
+    normalizeContribution,
+    isHistoricalRecord,
+    filterHistoricalRecords,
+    normalizeContentSources,
+    normalizeText,
+    getEntityEventTypes,
+    entityMatchesMediaType,
+    entityMatchesEventFilter,
+    getDistanceKm,
+    entityMatchesDistanceFilter,
+    groupEntitiesByCoordinate
+  };
+}));
+  </script>
+  <script data-memoland-module="contribution-view">
+(function initMemolandContributionView(root, factory) {
+  const api = factory();
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  if (root) root.MemolandContributionView = api;
+}(typeof globalThis !== 'undefined' ? globalThis : this, function createMemolandContributionView() {
+  'use strict';
+
+  const FICHA_LABELS = Object.freeze({
+    description: 'Descripcion del evento',
+    eventTypes: 'Tipo de evento',
+    occurrencePlaces: 'Donde ocurre',
+    occurrencePlaceOther: 'Otro lugar',
+    period: 'Periodo',
+    source: 'Fuente',
+    hasRecognition: 'Tiene homenaje o reconocimiento',
+    recognitionActors: 'Reconocimiento por quien',
+    recognitionActorOther: 'Otro actor',
+    recognitionForms: 'Forma de reconocimiento',
+    recognitionFormOther: 'Otra forma',
+    repressionActions: 'Acciones de represion',
+    forcedLaborYears: 'Anios de trabajos forzados',
+    prisonYears: 'Anios de prision',
+    repressionActionOther: 'Otra accion de represion',
+    repressedGroups: 'Colectivo represaliado',
+    repressedGroupOther: 'Otro grupo reprimido',
+    victimMenCount: 'Victimas hombres',
+    victimWomenCount: 'Victimas mujeres',
+    victimOtherCount: 'Victimas otro',
+    victimNames: 'Nombres de victimas',
+    victimOccupation: 'Ocupacion de victimas',
+    repressionArguments: 'Argumentos de represion',
+    repressionArgumentOther: 'Otro argumento',
+    perpetrators: 'Perpetradores',
+    perpetratorOther: 'Otro perpetrador',
+    resistanceActions: 'Acciones de resistencia',
+    resistanceActionOther: 'Otra accion de resistencia',
+    demandContents: 'Contenido de la demanda',
+    demandContentOther: 'Otro contenido de demanda',
+    organizerTypes: 'Tipo de organizador',
+    organizerTypeOther: 'Detalle de organizador',
+    participantCount: 'Numero de participantes',
+    participantNames: 'Participantes',
+    participantOccupation: 'Ocupacion de participantes'
+  });
+
+  function escapeHtml(value) {
+    return String(value ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+  }
+
+  function safeRemoteUrl(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    try {
+      const parsed = new URL(raw);
+      if (!['http:', 'https:'].includes(parsed.protocol)) return '';
+      if (parsed.username || parsed.password) return '';
+      return parsed.href;
+    } catch (_error) {
+      return '';
+    }
+  }
+
+  function isHeicUrl(value) {
+    return /\.hei(c|f)(?:[?#]|$)/i.test(String(value || ''));
+  }
+
+  function getDisplayImageUrl(value) {
+    const url = safeRemoteUrl(value);
+    if (!url) return '';
+    if (!isHeicUrl(url)) return url;
+    if (url.includes('res.cloudinary.com') && url.includes('/image/upload/')) {
+      return url.replace('/image/upload/', '/image/upload/f_auto,q_auto/');
+    }
+    return '';
+  }
+
+  function hasValue(value) {
+    return Array.isArray(value)
+      ? value.length > 0
+      : value !== null && value !== undefined && String(value).trim() !== '';
+  }
+
+  function formatValue(value) {
+    return Array.isArray(value) ? value.join(', ') : String(value ?? '');
+  }
+
+  function formatDate(value) {
+    if (!value) return '';
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toLocaleDateString('es-ES');
+  }
+
+  function renderInfoRow(label, value) {
+    if (!hasValue(value)) return '';
+    return `<div class="info-row"><span>${escapeHtml(label)}</span><strong>${escapeHtml(formatValue(value))}</strong></div>`;
+  }
+
+  function renderUnavailable(message = 'Archivo remoto no disponible') {
+    return `<div class="media-preview-fallback"><span>${escapeHtml(message)}</span></div>`;
+  }
+
+  function renderAttachment(attachment = {}, index = 0) {
+    const title = attachment.title || `${attachment.type || 'Adjunto'} ${index + 1}`;
+    const url = safeRemoteUrl(attachment.secureUrl || attachment.url);
+    let body = '';
+
+    if (attachment.type === 'photo') {
+      const displayUrl = getDisplayImageUrl(url);
+      body = displayUrl
+        ? `<img class="media-preview clickable" src="${escapeHtml(displayUrl)}" alt="${escapeHtml(title)}" loading="lazy" data-open-resource="image" data-resource-url="${escapeHtml(displayUrl)}" data-resource-title="${escapeHtml(title)}">`
+        : renderUnavailable(url && isHeicUrl(url) ? 'Formato HEIC no reproducible directamente' : undefined);
+      if (url) body += `<a class="resource-link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">Abrir recurso</a>`;
+    } else if (attachment.type === 'video') {
+      body = url
+        ? `<video class="media-preview clickable" src="${escapeHtml(url)}" controls preload="metadata" data-open-resource="video" data-resource-url="${escapeHtml(url)}" data-resource-title="${escapeHtml(title)}"></video><a class="resource-link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">Abrir recurso</a>`
+        : renderUnavailable();
+    } else if (attachment.type === 'audio') {
+      body = url
+        ? `<audio class="media-preview" src="${escapeHtml(url)}" controls preload="metadata"></audio><a class="resource-link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">Abrir recurso</a>`
+        : renderUnavailable();
+    } else if (attachment.type === 'text') {
+      const text = String(attachment.textContent || '').trim();
+      if (text) body += `<div class="media-preview contribution-text">${escapeHtml(text)}</div>`;
+      if (attachment.kind === 'document' && url) {
+        body += `<a class="resource-link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">Abrir documento</a>`;
+      }
+      if (!text && !(attachment.kind === 'document' && url)) body = renderUnavailable('Texto o documento no disponible');
+    } else {
+      body = renderUnavailable();
+    }
+
+    return `<section class="contribution-attachment" data-attachment-type="${escapeHtml(attachment.type || '')}"><h4>${escapeHtml(title)}</h4>${body}</section>`;
+  }
+
+  function groupAttachments(attachments = []) {
+    return attachments.reduce((groups, attachment) => {
+      const key = attachment.type || 'other';
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(attachment);
+      return groups;
+    }, {});
+  }
+
+  function getAttachmentSummary(entity = {}) {
+    const groups = groupAttachments(Array.isArray(entity.attachments) ? entity.attachments : []);
+    return {
+      photos: groups.photo?.length || 0,
+      videos: groups.video?.length || 0,
+      audios: groups.audio?.length || 0,
+      texts: groups.text?.filter((item) => item.kind !== 'document').length || 0,
+      documents: groups.text?.filter((item) => item.kind === 'document').length || 0,
+      unavailable: (entity.attachments || []).filter((item) => item.unavailable).length
+    };
+  }
+
+  function getEntityCoverUrl(entity = {}) {
+    const photo = (entity.attachments || []).find((attachment) => attachment.type === 'photo');
+    return photo ? getDisplayImageUrl(photo.secureUrl || photo.url) : '';
+  }
+
+  function renderAttachmentGroups(entity = {}) {
+    const groups = groupAttachments(entity.attachments || []);
+    const definitions = [
+      ['photo', 'Fotografias'],
+      ['video', 'Videos'],
+      ['audio', 'Audios'],
+      ['text', 'Documentos y textos']
+    ];
+    const rendered = definitions.map(([type, label]) => {
+      const items = groups[type] || [];
+      if (!items.length) return '';
+      return `<section class="contribution-group"><h3>${escapeHtml(label)} (${items.length})</h3><div class="contribution-attachment-grid">${items.map(renderAttachment).join('')}</div></section>`;
+    }).join('');
+    return rendered || renderUnavailable('No hay archivos disponibles en esta aportacion');
+  }
+
+  function renderContributionCard(entity = {}) {
+    const ficha = entity.fichaDescriptiva && typeof entity.fichaDescriptiva === 'object' ? entity.fichaDescriptiva : {};
+    const location = entity.locationLabel || [entity.city, entity.country].filter(Boolean).join(', ');
+    const coordinates = entity.location?.hasCoordinates
+      ? `${Number(entity.latitude).toFixed(5)}, ${Number(entity.longitude).toFixed(5)}`
+      : '';
+    const fichaRows = Object.entries(FICHA_LABELS)
+      .filter(([field]) => field !== 'description')
+      .map(([field, label]) => renderInfoRow(label, ficha[field]))
+      .join('');
+
+    return `
+      <article class="media-card contribution-card" data-entity-key="${escapeHtml(entity.key || '')}">
+        <div class="contribution-badge">Aportacion agrupada</div>
+        <h3>${escapeHtml(entity.title || `Aportacion ${entity.id ?? ''}`)}</h3>
+        ${renderInfoRow('Descripcion', entity.description)}
+        ${renderInfoRow('Usuario', entity.username)}
+        ${renderInfoRow('Proyecto', entity.projectName)}
+        ${renderInfoRow('Fecha de subida', formatDate(entity.date))}
+        ${renderInfoRow('Ubicacion', location)}
+        ${renderInfoRow('Coordenadas', coordinates)}
+        ${fichaRows ? `<section class="contribution-ficha"><h3>Ficha MEMOLAND</h3>${fichaRows}</section>` : ''}
+        ${renderAttachmentGroups(entity)}
+      </article>`;
+  }
+
+  return {
+    FICHA_LABELS,
+    escapeHtml,
+    safeRemoteUrl,
+    isHeicUrl,
+    getDisplayImageUrl,
+    hasValue,
+    formatValue,
+    formatDate,
+    renderInfoRow,
+    renderUnavailable,
+    renderAttachment,
+    groupAttachments,
+    getAttachmentSummary,
+    getEntityCoverUrl,
+    renderAttachmentGroups,
+    renderContributionCard
+  };
+}));
+  </script>
+  <script data-memoland-module="session">
+(function initMemolandSession(root, factory) {
+  const api = factory();
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  if (root) root.MemolandSession = api;
+}(typeof globalThis !== 'undefined' ? globalThis : this, function createMemolandSession() {
+  'use strict';
+
+  function sanitizeUser(user = {}) {
+    if (!user || typeof user !== 'object') return null;
+    return {
+      id: user.id ?? user._id ?? user.userId ?? '',
+      userId: user.userId ?? user.id ?? user._id ?? '',
+      username: user.username || user.name || user.email || '',
+      email: user.email || '',
+      name: user.name || '',
+      lastName: user.lastName || user.last_name || '',
+      isAdmin: Boolean(user.isAdmin ?? user.is_admin),
+      isAnalyst: Boolean(user.isAnalyst ?? user.is_analyst),
+      isCollaborator: Boolean(user.isCollaborator ?? user.is_collaborator),
+      isBlocked: Boolean(user.is_blocked ?? user.isBlocked)
+    };
+  }
+
+  function isAdministrator(user) {
+    return Boolean(user && sanitizeUser(user)?.isAdmin && !sanitizeUser(user)?.isBlocked);
+  }
+
+  function authHeaders(token, extra = {}) {
+    const normalized = String(token || '').trim();
+    return normalized ? { ...extra, 'x-access-token': normalized } : { ...extra };
+  }
+
+  function readSession(storage, tokenKey, userKey) {
+    if (!storage) return { token: '', user: null };
+    const token = storage.getItem(tokenKey) || '';
+    let storedUser = null;
+    try {
+      storedUser = JSON.parse(storage.getItem(userKey) || 'null');
+    } catch (_error) {
+      storedUser = null;
+    }
+    return { token, user: token ? sanitizeUser(storedUser) : null };
+  }
+
+  function saveSession(storage, tokenKey, userKey, token, user) {
+    const safeUser = sanitizeUser(user);
+    storage.setItem(tokenKey, String(token || ''));
+    storage.setItem(userKey, JSON.stringify(safeUser));
+    return safeUser;
+  }
+
+  function clearSession(storage, tokenKey, userKey) {
+    storage.removeItem(tokenKey);
+    storage.removeItem(userKey);
+  }
+
+  return { sanitizeUser, isAdministrator, authHeaders, readSession, saveSession, clearSession };
+}));
+  </script>
+  <script data-memoland-module="contribution-upload">
+(function initMemolandContributionUpload(root, factory) {
+  const api = factory();
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  if (root) root.MemolandContributionUpload = api;
+}(typeof globalThis !== 'undefined' ? globalThis : this, function createContributionUpload() {
+  'use strict';
+
+  const FILE_RULES = Object.freeze({
+    photos: { maxCount: 20, maxSize: 10 * 1024 * 1024, extensions: ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'], mimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'] },
+    videos: { maxCount: 10, maxSize: 200 * 1024 * 1024, extensions: ['mp4', 'mov', 'webm', 'm4v'], mimeTypes: ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-m4v'] },
+    audios: { maxCount: 10, maxSize: 50 * 1024 * 1024, extensions: ['mp3', 'm4a', 'wav', 'aac', 'ogg', 'webm'], mimeTypes: ['audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/wav', 'audio/x-wav', 'audio/aac', 'audio/ogg', 'audio/webm'] },
+    documents: { maxCount: 10, maxSize: 25 * 1024 * 1024, extensions: ['pdf', 'txt', 'rtf', 'doc', 'docx', 'odt'], mimeTypes: ['application/pdf', 'text/plain', 'application/rtf', 'text/rtf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.oasis.opendocument.text'] }
+  });
+
+  function emptySelection() {
+    return { photos: [], videos: [], audios: [], documents: [] };
+  }
+
+  function fileExtension(file) {
+    const name = String(file?.name || '');
+    return name.includes('.') ? name.split('.').pop().toLowerCase() : '';
+  }
+
+  function fileFingerprint(file) {
+    return [file?.name, file?.size, file?.type, file?.lastModified].map((value) => String(value ?? '')).join('|').toLowerCase();
+  }
+
+  function validateFile(file, type) {
+    const rule = FILE_RULES[type];
+    if (!rule) return ['Tipo de archivo no soportado.'];
+    const errors = [];
+    if (!file || Number(file.size) <= 0) errors.push('El archivo esta vacio.');
+    if (Number(file?.size) > rule.maxSize) errors.push(`Supera el limite de ${formatFileSize(rule.maxSize)}.`);
+    if (!rule.extensions.includes(fileExtension(file))) errors.push('La extension no esta permitida.');
+    if (!rule.mimeTypes.includes(String(file?.type || '').toLowerCase())) errors.push('El tipo MIME no esta permitido.');
+    return errors;
+  }
+
+  function addFiles(selection, type, files) {
+    const next = { ...selection, [type]: [...(selection[type] || [])] };
+    const errors = [];
+    const seen = new Set(next[type].map(fileFingerprint));
+    for (const file of Array.from(files || [])) {
+      const fileErrors = validateFile(file, type);
+      const fingerprint = fileFingerprint(file);
+      if (seen.has(fingerprint)) fileErrors.push('El archivo ya esta seleccionado.');
+      if (next[type].length >= FILE_RULES[type].maxCount) fileErrors.push(`Solo se permiten ${FILE_RULES[type].maxCount} archivos.`);
+      if (fileErrors.length) errors.push({ type, fileName: file?.name || 'Archivo', messages: fileErrors });
+      else {
+        seen.add(fingerprint);
+        next[type].push(file);
+      }
+    }
+    return { selection: next, errors };
+  }
+
+  function removeFile(selection, type, index) {
+    return { ...selection, [type]: (selection[type] || []).filter((_, currentIndex) => currentIndex !== Number(index)) };
+  }
+
+  function getCounts(selection = {}) {
+    return Object.fromEntries(Object.keys(FILE_RULES).map((type) => [type, (selection[type] || []).length]));
+  }
+
+  function validateSelection(selection = {}, options = {}) {
+    const errors = [];
+    const existingCounts = options.existingCounts || {};
+    Object.entries(FILE_RULES).forEach(([type, rule]) => {
+      const files = selection[type] || [];
+      if (Number(existingCounts[type] || 0) + files.length > rule.maxCount) errors.push(`${type}: maximo ${rule.maxCount} archivos en total.`);
+      files.forEach((file, index) => validateFile(file, type).forEach((message) => errors.push(`${type}[${index + 1}]: ${message}`)));
+    });
+    if (options.requirePhoto !== false && !(selection.photos || []).length) errors.push('Debe adjuntarse al menos una fotografia valida.');
+    if (options.textContent && Number(existingCounts.documents || 0) + (selection.documents || []).length + 1 > FILE_RULES.documents.maxCount) {
+      errors.push('documents: el texto libre cuenta dentro del limite total de 10 documentos y textos.');
+    }
+    return errors;
+  }
+
+  function validateCoordinates(latitude, longitude) {
+    const lat = latitude === '' || latitude === null || latitude === undefined ? NaN : Number(latitude);
+    const lng = longitude === '' || longitude === null || longitude === undefined ? NaN : Number(longitude);
+    const errors = [];
+    if (!Number.isFinite(lat) || lat < -90 || lat > 90) errors.push('La latitud debe estar entre -90 y 90.');
+    if (!Number.isFinite(lng) || lng < -180 || lng > 180) errors.push('La longitud debe estar entre -180 y 180.');
+    return errors;
+  }
+
+  function appendField(formData, key, value) {
+    if (value === undefined || value === null) return;
+    formData.append(key, Array.isArray(value) || typeof value === 'object' ? JSON.stringify(value) : String(value));
+  }
+
+  function buildContributionFormData({ fields = {}, selection = {}, textContent = '' } = {}, FormDataClass = FormData) {
+    const formData = new FormDataClass();
+    Object.entries(fields).forEach(([key, value]) => appendField(formData, key, value));
+    Object.keys(FILE_RULES).forEach((type) => {
+      (selection[type] || []).forEach((file) => formData.append(type, file, file.name));
+    });
+    const normalizedText = String(textContent || '').trim();
+    if (normalizedText) formData.append('textContent', normalizedText);
+    return formData;
+  }
+
+  function formatFileSize(bytes) {
+    const value = Number(bytes || 0);
+    if (value < 1024) return `${value} B`;
+    if (value < 1024 ** 2) return `${(value / 1024).toFixed(1)} KB`;
+    return `${(value / 1024 ** 2).toFixed(1)} MB`;
+  }
+
+  return { FILE_RULES, emptySelection, fileExtension, fileFingerprint, validateFile, addFiles, removeFile, getCounts, validateSelection, validateCoordinates, appendField, buildContributionFormData, formatFileSize };
+}));
+  </script>
+  <script data-memoland-module="contribution-management">
+(function initMemolandContributionManagement(root, factory) {
+  const api = factory();
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  if (root) root.MemolandContributionManagement = api;
+}(typeof globalThis !== 'undefined' ? globalThis : this, function createContributionManagement() {
+  'use strict';
+
+  const activeOperations = new Set();
+  const ERROR_CODES = { 400: 'VALIDATION_ERROR', 401: 'AUTH_REQUIRED', 403: 'FORBIDDEN', 404: 'NOT_FOUND', 409: 'CONFLICT', 413: 'PAYLOAD_TOO_LARGE', 500: 'SERVER_ERROR' };
+
+  class ContributionRequestError extends Error {
+    constructor(message, options = {}) {
+      super(message);
+      this.name = 'ContributionRequestError';
+      this.status = options.status ?? null;
+      this.code = options.code || 'REQUEST_ERROR';
+      this.details = options.details || [];
+      this.cleanupFailures = options.cleanupFailures || [];
+      this.cleanupPending = Boolean(options.cleanupPending || this.cleanupFailures.length);
+      this.ambiguous = Boolean(options.ambiguous);
+    }
+  }
+
+  function normalizeError(error) {
+    if (error instanceof ContributionRequestError) return error;
+    const timeout = error?.name === 'AbortError' || /timeout|tiempo/i.test(error?.message || '');
+    return new ContributionRequestError(
+      timeout ? 'La operacion agoto el tiempo de espera. Actualiza los datos antes de repetirla.' : (error?.message || 'No se pudo completar la operacion.'),
+      { code: timeout ? 'TIMEOUT' : 'NETWORK_ERROR', ambiguous: true }
+    );
+  }
+
+  function buildUrl(apiBaseUrl, path) {
+    return `${String(apiBaseUrl || '').replace(/\/+$/, '')}${path}`;
+  }
+
+  async function requestJson(url, options = {}) {
+    const fetchImpl = options.fetchImpl || (typeof fetch === 'function' ? fetch.bind(globalThis) : null);
+    if (!fetchImpl) throw new ContributionRequestError('No existe una implementacion de fetch.', { code: 'FETCH_MISSING' });
+    const controller = typeof AbortController === 'function' ? new AbortController() : null;
+    const timeoutMs = Number(options.timeoutMs || 30000);
+    const timer = controller && timeoutMs > 0 ? setTimeout(() => controller.abort(), timeoutMs) : null;
+    try {
+      const response = await fetchImpl(url, { ...options.request, ...(controller ? { signal: controller.signal } : {}) });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new ContributionRequestError(payload.message || `Error HTTP ${response.status}`, {
+          status: response.status,
+          code: ERROR_CODES[response.status] || 'HTTP_ERROR',
+          details: payload.errors || [],
+          cleanupFailures: payload.cleanupFailures || [],
+          cleanupPending: payload.cleanupPending
+        });
+      }
+      return payload;
+    } catch (error) {
+      throw normalizeError(error);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
+  async function withOperationLock(id, operation) {
+    const key = `contribution:${id}`;
+    if (activeOperations.has(key)) {
+      throw new ContributionRequestError('Ya hay una operacion en curso para esta aportacion.', { code: 'DUPLICATE_OPERATION' });
+    }
+    activeOperations.add(key);
+    try {
+      return await operation();
+    } finally {
+      activeOperations.delete(key);
+    }
+  }
+
+  function authHeaders(token, extra = {}) {
+    if (!token) throw new ContributionRequestError('Autenticacion requerida.', { status: 401, code: 'AUTH_REQUIRED' });
+    return { ...extra, 'x-access-token': token };
+  }
+
+  function updateContribution(id, payload, options = {}) {
+    return withOperationLock(id, () => requestJson(buildUrl(options.apiBaseUrl, `/contributions/${id}`), {
+      fetchImpl: options.fetchImpl,
+      request: { method: 'PUT', headers: authHeaders(options.token, { 'Content-Type': 'application/json' }), body: JSON.stringify(payload) }
+    }));
+  }
+
+  function addAttachments(id, formData, options = {}) {
+    return withOperationLock(id, () => requestJson(buildUrl(options.apiBaseUrl, `/contributions/${id}/attachments`), {
+      fetchImpl: options.fetchImpl,
+      timeoutMs: options.timeoutMs || 180000,
+      request: { method: 'POST', headers: authHeaders(options.token), body: formData }
+    }));
+  }
+
+  function deleteAttachment(id, type, attachmentId, options = {}) {
+    return withOperationLock(id, () => requestJson(buildUrl(options.apiBaseUrl, `/contributions/${id}/attachments/${encodeURIComponent(type)}/${encodeURIComponent(attachmentId)}`), {
+      fetchImpl: options.fetchImpl,
+      request: { method: 'DELETE', headers: authHeaders(options.token) }
+    }));
+  }
+
+  function deleteContribution(id, options = {}) {
+    return withOperationLock(id, () => requestJson(buildUrl(options.apiBaseUrl, `/contributions/${id}`), {
+      fetchImpl: options.fetchImpl,
+      request: { method: 'DELETE', headers: authHeaders(options.token) }
+    }));
+  }
+
+  function createContribution(formData, options = {}) {
+    return withOperationLock('new', () => requestJson(buildUrl(options.apiBaseUrl, '/contributions'), {
+      fetchImpl: options.fetchImpl,
+      timeoutMs: options.timeoutMs || 240000,
+      request: { method: 'POST', headers: authHeaders(options.token), body: formData }
+    }));
+  }
+
+  async function getContributionState(id, options = {}) {
+    try {
+      const payload = await requestJson(buildUrl(options.apiBaseUrl, `/contributions/${id}`), { fetchImpl: options.fetchImpl });
+      return { exists: true, contribution: payload.data || null, error: null };
+    } catch (error) {
+      const normalized = normalizeError(error);
+      if (normalized.status === 404) return { exists: false, contribution: null, error: null };
+      return { exists: null, contribution: null, error: normalized };
+    }
+  }
+
+  function isOperationInProgress(id) {
+    return activeOperations.has(`contribution:${id}`);
+  }
+
+  return {
+    ContributionRequestError,
+    normalizeError,
+    requestJson,
+    withOperationLock,
+    updateContribution,
+    addAttachments,
+    deleteAttachment,
+    deleteContribution,
+    createContribution,
+    getContributionState,
+    isOperationInProgress
+  };
+}));
+  </script>
+  <script data-memoland-module="contribution-admin">
+(function initMemolandContributionAdmin(root, factory) {
+  const content = typeof module === 'object' && module.exports ? require('./content-normalizer') : root.MemolandContent;
+  const view = typeof module === 'object' && module.exports ? require('./contribution-view') : root.MemolandContributionView;
+  const api = factory(content, view);
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  if (root) root.MemolandContributionAdmin = api;
+}(typeof globalThis !== 'undefined' ? globalThis : this, function createContributionAdmin(Content, View) {
+  'use strict';
+
+  const CONTRIBUTION_CSV_COLUMNS = Object.freeze(['entityType', 'id', 'username', 'userId', 'projectId', 'projectName', 'title', 'description', 'date', 'location', 'city', 'country', 'latitude', 'longitude', 'photos', 'videos', 'audios', 'documents', 'texts', 'unavailableFiles', 'availability', 'formSchema', 'eventTypes', 'occurrencePlaces', 'period', 'source', 'fichaDescriptiva']);
+
+  function filterLegacyCollections(legacy = {}) {
+    return Object.fromEntries(['photo', 'video', 'audio', 'text'].map((type) => [type, Content.filterHistoricalRecords(legacy[type] || [])]));
+  }
+
+  function normalizeContributions(records = []) {
+    const seen = new Set();
+    return (records || []).map((item, index) => item?.origin === 'contribution' ? item : Content.normalizeContribution(item, index)).filter((item) => {
+      if (seen.has(item.key)) return false;
+      seen.add(item.key);
+      return true;
+    });
+  }
+
+  function attachmentSummary(contribution) {
+    const counts = View.getAttachmentSummary(contribution);
+    const total = counts.photos + counts.videos + counts.audios + counts.documents + counts.texts;
+    return { ...counts, total, availability: total === 0 ? 'empty' : counts.unavailable ? 'partial' : 'available' };
+  }
+
+  function getStatistics(data = {}) {
+    const contributions = data.contributions || [];
+    const attachments = contributions.reduce((total, item) => total + attachmentSummary(item).total, 0);
+    const legacyTotal = ['photos', 'videos', 'audios', 'texts'].reduce((total, type) => total + (data[type] || []).length, 0);
+    return {
+      photos: (data.photos || []).length,
+      videos: (data.videos || []).length,
+      audios: (data.audios || []).length,
+      texts: (data.texts || []).length,
+      contributions: contributions.length,
+      contributionAttachments: attachments,
+      publishedEntities: legacyTotal + contributions.length,
+      users: (data.users || []).length
+    };
+  }
+
+  function normalizeSearch(value) {
+    return String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  }
+
+  function filterContributions(items = [], options = {}) {
+    const query = normalizeSearch(options.query).trim();
+    const username = normalizeSearch(options.username).trim();
+    const availability = options.availability || 'all';
+    const filtered = items.filter((item) => {
+      const summary = attachmentSummary(item);
+      if (username && normalizeSearch(item.username) !== username) return false;
+      if (availability !== 'all' && summary.availability !== availability) return false;
+      if (!query) return true;
+      return [item.id, item.username, item.projectName, item.title, item.description, item.locationLabel, item.city, item.country].some((value) => normalizeSearch(value).includes(query));
+    });
+    return filtered.sort((a, b) => {
+      if (options.sort === 'oldest') return new Date(a.date || a.createdAt || 0) - new Date(b.date || b.createdAt || 0);
+      if (options.sort === 'user') return String(a.username || '').localeCompare(String(b.username || ''), 'es');
+      return new Date(b.date || b.createdAt || 0) - new Date(a.date || a.createdAt || 0);
+    });
+  }
+
+  function contributionCsvRow(item) {
+    const summary = attachmentSummary(item);
+    const ficha = item.fichaDescriptiva || {};
+    return {
+      entityType: 'contribution', id: item.id, username: item.username, userId: item.userId, projectId: item.projectId,
+      projectName: item.projectName, title: item.title, description: item.description, date: item.date,
+      location: item.locationLabel, city: item.city, country: item.country, latitude: item.latitude, longitude: item.longitude,
+      photos: summary.photos, videos: summary.videos, audios: summary.audios, documents: summary.documents, texts: summary.texts,
+      unavailableFiles: summary.unavailable, availability: summary.availability, formSchema: item.formSchema,
+      eventTypes: ficha.eventTypes, occurrencePlaces: ficha.occurrencePlaces, period: ficha.period, source: ficha.source,
+      fichaDescriptiva: ficha
+    };
+  }
+
+  function csvValue(value) {
+    if (Array.isArray(value)) return value.join(' | ');
+    if (value && typeof value === 'object') return JSON.stringify(value);
+    return value ?? '';
+  }
+
+  function csvCell(value) {
+    let text = String(csvValue(value));
+    if (/^[\s]*[=+\-@]/.test(text)) text = `'${text}`;
+    return `"${text.replaceAll('"', '""')}"`;
+  }
+
+  function buildContributionCsv(items = []) {
+    const rows = normalizeContributions(items).map(contributionCsvRow);
+    return `\uFEFF${[CONTRIBUTION_CSV_COLUMNS.map(csvCell).join(';'), ...rows.map((row) => CONTRIBUTION_CSV_COLUMNS.map((key) => csvCell(row[key])).join(';'))].join('\r\n')}`;
+  }
+
+  function canDeleteAttachment(contribution, attachment) {
+    if (attachment?.type !== 'photo') return true;
+    if (attachment.unavailable) return true;
+    return (contribution?.attachments || []).filter((item) => item.type === 'photo' && !item.unavailable).length > 1;
+  }
+
+  return { CONTRIBUTION_CSV_COLUMNS, filterLegacyCollections, normalizeContributions, attachmentSummary, getStatistics, filterContributions, contributionCsvRow, csvCell, buildContributionCsv, canDeleteAttachment };
+}));
+  </script>
   <script>
-    const API_BASE_URL = 'https://vocesterritorios.com/apimemoland';
+    const API_BASE_URL = MemolandApiClient.resolveApiBaseUrl(window.MEMOLAND_API_BASE_URL);
     const MAP_ICON_BASE_PATH = '../../assets/map-icons/220px';
     const CARTO_API_KEY = 'cb1_3s0u_1_9f281c23f8777d9e3233b1dc';
     const ENDPOINTS = {
@@ -1165,6 +2390,7 @@
       videos: `${API_BASE_URL}/video/getAllVideos`,
       texts: `${API_BASE_URL}/text/getAllTexts`,
       audios: `${API_BASE_URL}/audio/getAllAudios`,
+      contributions: `${API_BASE_URL}/contributions`,
       users: `${API_BASE_URL}/auth/users`,
       usersAlt: `${API_BASE_URL}/auth/Users`,
       login: `${API_BASE_URL}/auth/loginUser`,
@@ -1177,7 +2403,8 @@
       photos: `${API_BASE_URL}/photo/updatePhoto`,
       videos: `${API_BASE_URL}/video/updateVideo`,
       texts: `${API_BASE_URL}/text/updateText`,
-      audios: `${API_BASE_URL}/audio/updateAudio`
+      audios: `${API_BASE_URL}/audio/updateAudio`,
+      contributions: `${API_BASE_URL}/contributions`
     };
 
     const CONTENT_DELETE_ENDPOINTS = {
@@ -1187,10 +2414,11 @@
       audios: `${API_BASE_URL}/audio/deleteAudio`
     };
 
+    const storedAdminSession = MemolandSession.readSession(localStorage, 'memolandAdminToken', 'memolandAdminUser');
     const state = {
       activeTab: 'photos',
-      token: localStorage.getItem('memolandAdminToken') || '',
-      user: JSON.parse(localStorage.getItem('memolandAdminUser') || 'null'),
+      token: storedAdminSession.token,
+      user: storedAdminSession.user,
       editing: null,
       deleting: null,
       deleteRequestInProgress: false,
@@ -1198,11 +2426,14 @@
       uncertainDeletes: new Set(),
       editLocationMap: null,
       editLocationMarker: null,
+      addingAttachments: null,
+      pendingAttachments: MemolandContributionUpload.emptySelection(),
       data: {
         photos: [],
         videos: [],
         texts: [],
         audios: [],
+        contributions: [],
         users: []
       }
     };
@@ -1228,6 +2459,8 @@
       searchInput: $('#searchInput'),
       usernameFilter: $('#usernameFilter'),
       sortSelect: $('#sortSelect'),
+      availabilityField: $('#availabilityField'),
+      availabilityFilter: $('#availabilityFilter'),
       csvButton: $('#csvButton'),
       allMediaCsvButton: $('#allMediaCsvButton'),
       contentView: $('#contentView'),
@@ -1250,7 +2483,20 @@
       closeDeleteButton: $('#closeDeleteButton'),
       cancelDeleteButton: $('#cancelDeleteButton'),
       continueDeleteButton: $('#continueDeleteButton'),
-      confirmDeleteButton: $('#confirmDeleteButton')
+      confirmDeleteButton: $('#confirmDeleteButton'),
+      attachmentModal: $('#attachmentModal'),
+      closeAttachmentButton: $('#closeAttachmentButton'),
+      cancelAttachmentButton: $('#cancelAttachmentButton'),
+      saveAttachmentButton: $('#saveAttachmentButton'),
+      adminSelectedFiles: $('#adminSelectedFiles'),
+      adminTextContent: $('#adminTextContent'),
+      attachmentError: $('#attachmentError'),
+      adminFileInputs: {
+        photos: $('#adminPhotosInput'),
+        videos: $('#adminVideosInput'),
+        audios: $('#adminAudiosInput'),
+        documents: $('#adminDocumentsInput')
+      }
     };
 
     const labels = {
@@ -1258,6 +2504,7 @@
       videos: 'Videos',
       texts: 'Textos',
       audios: 'Audios',
+      contributions: 'Aportaciones',
       users: 'Usuarios'
     };
 
@@ -1602,7 +2849,7 @@
     }
 
     function getAuthHeaders(extra = {}) {
-      return state.token ? { ...extra, Authorization: `Bearer ${state.token}` } : extra;
+      return MemolandSession.authHeaders(state.token, extra);
     }
 
     async function fetchJson(url, options = {}) {
@@ -1623,19 +2870,12 @@
     }
 
     function normalizeUser(user) {
-      return {
-        ...user,
-        name: user.name || '',
-        lastName: user.lastName || user.last_name || '',
-        isAdmin: Boolean(user.isAdmin ?? user.is_admin),
-        isAnalyst: Boolean(user.isAnalyst ?? user.is_analyst),
-        isCollaborator: Boolean(user.isCollaborator ?? user.is_collaborator),
-        is_blocked: Boolean(user.is_blocked ?? user.isBlocked)
-      };
+      const safeUser = MemolandSession.sanitizeUser(user);
+      return safeUser ? { ...safeUser, is_blocked: safeUser.isBlocked } : null;
     }
 
     function updateSessionUi() {
-      const isLoggedIn = Boolean(state.token && state.user);
+      const isLoggedIn = Boolean(state.token && MemolandSession.isAdministrator(state.user));
       const userLabel = state.user?.username || state.user?.email || 'usuario';
       elements.loginForm.classList.toggle('hidden', isLoggedIn);
       elements.loggedToolbar.classList.toggle('hidden', !isLoggedIn);
@@ -1662,10 +2902,14 @@
           headers: { Authorization: `Bearer ${loginData.token}` }
         });
 
+        const safeUser = normalizeUser(userData);
+        if (!MemolandSession.isAdministrator(safeUser)) {
+          const error = new Error('Esta cuenta no tiene rol administrativo.');
+          error.status = 403;
+          throw error;
+        }
         state.token = loginData.token;
-        state.user = normalizeUser(userData);
-        localStorage.setItem('memolandAdminToken', state.token);
-        localStorage.setItem('memolandAdminUser', JSON.stringify(state.user));
+        state.user = MemolandSession.saveSession(localStorage, 'memolandAdminToken', 'memolandAdminUser', state.token, safeUser);
         updateSessionUi();
         setStatus('ok', 'Sesion iniciada correctamente.');
         await loadAllData();
@@ -1686,12 +2930,12 @@
         videos: [],
         texts: [],
         audios: [],
+        contributions: [],
         users: []
       };
       state.uncertainDeletes.clear();
       renderUsernameFilterOptions();
-      localStorage.removeItem('memolandAdminToken');
-      localStorage.removeItem('memolandAdminUser');
+      MemolandSession.clearSession(localStorage, 'memolandAdminToken', 'memolandAdminUser');
       updateSessionUi();
       renderStats();
       renderCharts();
@@ -1711,7 +2955,7 @@
     }
 
     async function loadAllData() {
-      if (!state.token || !state.user) {
+      if (!state.token || !MemolandSession.isAdministrator(state.user)) {
         setApiStatus('pending', 'Inicia sesion para conectar');
         setStatus('bad', 'Debes iniciar sesion para ver los datos de administracion.');
         return;
@@ -1722,22 +2966,39 @@
       elements.refreshButton.disabled = true;
 
       try {
-        const [photos, videos, texts, audios, users] = await Promise.all([
-          fetchJson(ENDPOINTS.photos).then((data) => normalizeCollection(data, 'photos')),
-          fetchJson(ENDPOINTS.videos).then((data) => normalizeCollection(data, 'videos')),
-          fetchJson(ENDPOINTS.texts).then((data) => normalizeCollection(data, 'texts')),
-          fetchJson(ENDPOINTS.audios).then((data) => normalizeCollection(data, 'audios')),
+        const [contentResult, usersResult] = await Promise.allSettled([
+          MemolandApiClient.fetchContentSources({ apiBaseUrl: API_BASE_URL }),
           loadUsers()
         ]);
+        const errors = [];
+        let loadedAnything = false;
+        if (contentResult.status === 'fulfilled') {
+          const content = contentResult.value;
+          loadedAnything = content.loadedSources.length > 0;
+          const legacy = MemolandContributionAdmin.filterLegacyCollections(content.legacy);
+          const keyMap = { photo: 'photos', video: 'videos', audio: 'audios', text: 'texts' };
+          Object.entries(keyMap).forEach(([source, target]) => {
+            if (content.loadedSources.includes(source)) state.data[target] = legacy[source];
+          });
+          if (content.loadedSources.includes('contributions')) {
+            state.data.contributions = MemolandContributionAdmin.normalizeContributions(content.contributions);
+          }
+          errors.push(...content.errors.map((item) => item.source));
+        } else {
+          errors.push('contenidos');
+        }
+        if (usersResult.status === 'fulfilled') {
+          state.data.users = usersResult.value.filter(Boolean);
+          loadedAnything = true;
+        } else errors.push('usuarios');
 
-        state.data.photos = photos;
-        state.data.videos = videos;
-        state.data.texts = texts;
-        state.data.audios = audios;
-        state.data.users = users;
+        if (!loadedAnything) {
+          throw new Error('No se pudo cargar ninguna fuente administrativa.');
+        }
         state.uncertainDeletes.clear();
         renderUsernameFilterOptions();
-        setApiStatus('connected', 'Conectado a Memoland');
+        setApiStatus(errors.length ? 'error' : 'connected', errors.length ? 'Carga parcial' : 'Conectado a Memoland');
+        if (errors.length) setStatus('bad', `Carga incompleta. No se pudieron actualizar: ${errors.join(', ')}.`);
         renderStats();
         renderCharts();
         renderActiveTab();
@@ -1753,12 +3014,16 @@
     }
 
     function renderStats() {
+      const values = MemolandContributionAdmin.getStatistics(state.data);
       const stats = [
-        ['Fotos', state.data.photos.length],
-        ['Videos', state.data.videos.length],
-        ['Textos', state.data.texts.length],
-        ['Audios', state.data.audios.length],
-        ['Usuarios', state.data.users.length]
+        ['Fotos historicas', values.photos],
+        ['Videos historicos', values.videos],
+        ['Textos historicos', values.texts],
+        ['Audios historicos', values.audios],
+        ['Aportaciones', values.contributions],
+        ['Adjuntos agrupados', values.contributionAttachments],
+        ['Entidades publicadas', values.publishedEntities],
+        ['Usuarios', values.users]
       ];
 
       elements.stats.innerHTML = stats.map(([label, value]) => `
@@ -1774,7 +3039,8 @@
         ...state.data.photos.map((item) => ({ ...item, __typeLabel: 'Fotos', __typeKey: 'photos' })),
         ...state.data.videos.map((item) => ({ ...item, __typeLabel: 'Videos', __typeKey: 'videos' })),
         ...state.data.texts.map((item) => ({ ...item, __typeLabel: 'Textos', __typeKey: 'texts' })),
-        ...state.data.audios.map((item) => ({ ...item, __typeLabel: 'Audios', __typeKey: 'audios' }))
+        ...state.data.audios.map((item) => ({ ...item, __typeLabel: 'Audios', __typeKey: 'audios' })),
+        ...state.data.contributions.map((item) => ({ ...item, __typeLabel: 'Aportaciones', __typeKey: 'contributions', country: item.country, fichaDescriptiva: item.fichaDescriptiva }))
       ];
     }
 
@@ -1900,7 +3166,8 @@
         ['Fotos', state.data.photos.length],
         ['Videos', state.data.videos.length],
         ['Textos', state.data.texts.length],
-        ['Audios', state.data.audios.length]
+        ['Audios', state.data.audios.length],
+        ['Aportaciones', state.data.contributions.length]
       ];
       const eventTypeRows = [
         ['Resistencia', eventTypeCounts.resistencia],
@@ -1921,6 +3188,14 @@
     function getFilteredItems() {
       const query = elements.searchInput.value.trim().toLowerCase();
       const selectedUsername = elements.usernameFilter.value.trim().toLocaleLowerCase('es');
+      if (state.activeTab === 'contributions') {
+        return MemolandContributionAdmin.filterContributions(state.data.contributions, {
+          query,
+          username: selectedUsername,
+          availability: elements.availabilityFilter.value,
+          sort: elements.sortSelect.value
+        });
+      }
       const items = [...state.data[state.activeTab]];
 
       const filtered = items.filter((item) => {
@@ -1966,7 +3241,14 @@
     }
 
     function renderEditFields(item) {
-      elements.editFields.innerHTML = FICHA_EDIT_FIELDS.map((field) => {
+      const sharedFields = state.editing?.type === 'contributions' ? `
+        <div class="field full"><label for="edit-shared-title">Titulo</label><input id="edit-shared-title" data-shared-field="title" value="${escapeHtml(item.title || '')}"></div>
+        <div class="field"><label for="edit-shared-project-id">ID de proyecto</label><input id="edit-shared-project-id" data-shared-field="projectId" value="${escapeHtml(item.projectId || '')}"></div>
+        <div class="field"><label for="edit-shared-project-name">Proyecto</label><input id="edit-shared-project-name" data-shared-field="projectName" value="${escapeHtml(item.projectName || '')}"></div>
+        <div class="field full"><label for="edit-shared-location">Ubicacion</label><input id="edit-shared-location" data-shared-field="location" value="${escapeHtml(item.locationLabel || '')}"></div>
+        <div class="field"><label for="edit-shared-icon">Icono</label><input id="edit-shared-icon" data-shared-field="icon" value="${escapeHtml(item.markerIconId || item.icon || '')}"></div>
+      ` : '';
+      elements.editFields.innerHTML = sharedFields + FICHA_EDIT_FIELDS.map((field) => {
         const value = escapeHtml(getEditableFichaValue(item, field));
         const classes = `field${field.full ? ' full' : ''}`;
         const hint = field.type === 'list' ? ' (un valor por linea)' : '';
@@ -2161,6 +3443,13 @@
       payload.fichaPlaceCountry = place.country || '';
       payload.fichaMarkerIcon = markerIcon;
       payload.fichaMapIcon = markerIcon;
+      elements.editFields.querySelectorAll('[data-shared-field]').forEach((control) => {
+        payload[control.dataset.sharedField] = control.value.trim();
+      });
+      if (payload.icon) {
+        payload.markerIcon = payload.icon;
+        payload.mapIcon = payload.icon;
+      }
       return payload;
     }
 
@@ -2176,21 +3465,32 @@
       }
 
       const ficha = readEditedFicha(item);
+      const place = ficha.place || {};
+      const hasAnyCoordinate = place.latitude !== '' || place.longitude !== '';
+      const coordinateErrors = (type === 'contributions' || hasAnyCoordinate)
+        ? MemolandContributionUpload.validateCoordinates(place.latitude, place.longitude)
+        : [];
+      if (coordinateErrors.length) {
+        setStatus('bad', coordinateErrors.join(' '));
+        showToast('bad', 'Revisa la ubicacion antes de guardar.');
+        return;
+      }
       const payload = buildEditedFichaPayload(ficha, item);
       elements.saveEditButton.disabled = true;
       elements.saveEditButton.textContent = 'Guardando...';
 
       try {
-        await fetchJson(CONTENT_UPDATE_ENDPOINTS[type], {
-          method: 'PUT',
-          headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
-          body: JSON.stringify({
-            username: item.username,
-            id: contentId,
-            ...payload
-          })
-        });
-        Object.assign(item, payload);
+        if (type === 'contributions') {
+          await MemolandContributionManagement.updateContribution(contentId, payload, { apiBaseUrl: API_BASE_URL, token: state.token });
+          await loadAllData();
+        } else {
+          await fetchJson(CONTENT_UPDATE_ENDPOINTS[type], {
+            method: 'PUT',
+            headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ username: item.username, id: contentId, ...payload })
+          });
+          Object.assign(item, payload);
+        }
         closeFichaEditor();
         renderStats();
         renderCharts();
@@ -2349,10 +3649,14 @@
     }
 
     function getContentTypeLabel(type) {
-      return ({ photos: 'Fotografía', videos: 'Vídeo', audios: 'Audio', texts: 'Texto' })[type] || type;
+      return ({ photos: 'Fotografía', videos: 'Vídeo', audios: 'Audio', texts: 'Texto', contributions: 'Aportación completa' })[type] || type;
     }
 
     function getDeletePreviewMedia(type, item) {
+      if (type === 'contributions') {
+        const cover = MemolandContributionView.getEntityCoverUrl(item);
+        return cover ? `<img class="delete-preview-media" src="${escapeHtml(cover)}" alt="Fotografia principal">` : '<div class="delete-preview-media delete-preview-placeholder">Aportacion</div>';
+      }
       const url = getMediaUrl(item);
       if (type === 'photos' && url) {
         return `<img class="delete-preview-media" src="${escapeHtml(url)}" alt="Miniatura del contenido">`;
@@ -2366,6 +3670,7 @@
     function renderDeletePreview(type, item, id) {
       const title = getTextValue(item, ['title', 'description', 'textContent']) || 'Sin título';
       const location = [item.city, item.country].filter(Boolean).join(', ') || item.location || 'Sin ubicación';
+      const contributionSummary = type === 'contributions' ? MemolandContributionAdmin.attachmentSummary(item) : null;
       elements.deletePreview.innerHTML = `
         ${getDeletePreviewMedia(type, item)}
         <div class="delete-preview-data">
@@ -2374,6 +3679,7 @@
           <div class="delete-preview-row"><span>ID</span><strong>${escapeHtml(id)}</strong></div>
           <div class="delete-preview-row"><span>Usuario</span><strong>${escapeHtml(item.username || 'Sin usuario')}</strong></div>
           <div class="delete-preview-row"><span>Ubicación</span><strong>${escapeHtml(location)}</strong></div>
+          ${contributionSummary ? `<div class="delete-preview-row"><span>Archivos afectados</span><strong>${contributionSummary.total}</strong></div>` : ''}
         </div>
       `;
     }
@@ -2408,6 +3714,10 @@
       state.deleteTrigger = trigger || document.activeElement;
       state.deleteRequestInProgress = false;
       resetDeleteModalToWarning();
+      if (type === 'contributions') {
+        elements.deleteModalTitle.textContent = '¿Eliminar esta aportacion completa?';
+        elements.deleteModalMessage.textContent = 'Se eliminaran la aportacion, su ficha compartida y todos sus archivos asociados. Esta accion no se puede deshacer.';
+      }
       renderDeletePreview(type, item, id);
       elements.deleteModal.classList.remove('hidden');
       document.body.style.overflow = 'hidden';
@@ -2446,13 +3756,21 @@
     }
 
     async function verifyContentStillExists(type, id) {
+      if (type === 'contributions') {
+        const result = await MemolandContributionManagement.getContributionState(id, { apiBaseUrl: API_BASE_URL });
+        if (result.exists === null) throw result.error;
+        return result.exists;
+      }
       const data = await fetchJson(ENDPOINTS[type]);
-      const items = normalizeCollection(data, type);
+      const items = normalizeCollection(data, type).filter(MemolandContent.isHistoricalRecord);
       state.data[type] = items;
       return items.some((item) => String(getContentRecordId(item)) === String(id));
     }
 
     async function deleteMemolandContent(type, id) {
+      if (type === 'contributions') {
+        return MemolandContributionManagement.deleteContribution(id, { apiBaseUrl: API_BASE_URL, token: state.token });
+      }
       const endpoint = CONTENT_DELETE_ENDPOINTS[type];
       if (!endpoint) throw new Error('Tipo de contenido no válido.');
       if (id === undefined || id === null || String(id) === '') throw new Error('Identificador no válido.');
@@ -2467,7 +3785,7 @@
       return response;
     }
 
-    function completeContentDeletion(type, id) {
+    function completeContentDeletion(type, id, result = {}) {
       state.uncertainDeletes.delete(`${type}:${id}`);
       state.deleteRequestInProgress = false;
       state.deleting = null;
@@ -2476,8 +3794,11 @@
       elements.deletePreview.innerHTML = '';
       document.body.style.overflow = '';
       removeDeletedContentFromState(type, id);
-      setStatus('ok', 'Contenido eliminado correctamente.');
-      showToast('ok', 'Contenido eliminado correctamente.');
+      const message = result.cleanupPending
+        ? 'Eliminacion confirmada. Queda pendiente la limpieza de algunos recursos remotos.'
+        : type === 'contributions' ? 'Aportacion eliminada correctamente.' : 'Contenido eliminado correctamente.';
+      setStatus(result.cleanupPending ? 'warn' : 'ok', message);
+      showToast(result.cleanupPending ? 'bad' : 'ok', message);
     }
 
     async function confirmContentDeletion() {
@@ -2492,11 +3813,12 @@
       elements.deleteError.classList.add('hidden');
 
       try {
-        await deleteMemolandContent(type, id);
-        completeContentDeletion(type, id);
+        const result = await deleteMemolandContent(type, id);
+        completeContentDeletion(type, id, result);
       } catch (error) {
+        const normalizedError = type === 'contributions' ? MemolandContributionManagement.normalizeError(error) : error;
         let stillExists = true;
-        if (error instanceof TypeError) {
+        if (error instanceof TypeError || normalizedError.ambiguous) {
           try {
             stillExists = await verifyContentStillExists(type, id);
           } catch (verificationError) {
@@ -2517,7 +3839,7 @@
         }
 
         state.deleteRequestInProgress = false;
-        elements.deleteError.textContent = error.message || 'No se pudo eliminar el contenido.';
+        elements.deleteError.textContent = normalizedError.message || 'No se pudo eliminar el contenido.';
         elements.deleteError.classList.remove('hidden');
         elements.confirmDeleteButton.textContent = 'Eliminar definitivamente';
         elements.confirmDeleteButton.disabled = elements.deleteConfirmInput.value !== 'ELIMINAR';
@@ -2571,6 +3893,144 @@
           </article>
         `;
       }).join('')}</div>`;
+    }
+
+    function renderContributionCards() {
+      const items = getFilteredItems();
+      if (!items.length) {
+        elements.contentView.innerHTML = '<div class="panel-inner">No hay aportaciones para mostrar.</div>';
+        return;
+      }
+
+      elements.contentView.innerHTML = `<div class="grid">${items.map((item) => {
+        const summary = MemolandContributionAdmin.attachmentSummary(item);
+        const cover = MemolandContributionView.getEntityCoverUrl(item);
+        const availabilityLabel = summary.availability === 'available' ? 'Archivos disponibles' : summary.availability === 'partial' ? 'Disponibilidad parcial' : 'Sin archivos disponibles';
+        const attachmentRows = item.attachments.map((attachment) => {
+          const canDelete = MemolandContributionAdmin.canDeleteAttachment(item, attachment);
+          const label = attachment.kind === 'document' ? 'Documento' : attachment.type === 'text' ? 'Texto libre' : attachment.type;
+          return `<div class="attachment-management-row"><span>${escapeHtml(label)}: ${escapeHtml(attachment.title || `#${attachment.id}`)}</span><button class="button danger" type="button" data-action="delete-contribution-attachment" data-contribution-id="${escapeHtml(item.id)}" data-attachment-id="${escapeHtml(attachment.id)}" data-attachment-type="${escapeHtml(attachment.type)}" ${canDelete ? '' : 'disabled title="La ultima fotografia no puede eliminarse"'}>Eliminar archivo</button></div>`;
+        }).join('');
+
+        return `<article class="card contribution-admin-card">
+          ${cover ? `<img class="contribution-cover" src="${escapeHtml(cover)}" alt="Fotografia principal de ${escapeHtml(item.title || `Aportacion ${item.id}`)}" data-action="open-resource" data-resource-url="${escapeHtml(cover)}">` : '<div class="media-preview document-preview">Sin fotografia disponible</div>'}
+          <div class="card-body">
+            <div class="meta"><span class="pill">Aportacion #${escapeHtml(item.id)}</span><span class="pill">${escapeHtml(availabilityLabel)}</span></div>
+            <h3 class="card-title">${escapeHtml(item.title || `Aportacion ${item.id}`)}</h3>
+            <p>${escapeHtml(item.description || 'Sin descripcion')}</p>
+            <div class="meta"><span class="pill">${escapeHtml(item.username || 'Sin usuario')}</span><span class="pill">${escapeHtml(item.projectName || 'Sin proyecto')}</span><span class="pill">${escapeHtml(formatDate(item.date || item.createdAt))}</span></div>
+            <div class="meta"><span class="pill">${escapeHtml(item.locationLabel || 'Sin ubicacion')}</span></div>
+            <div class="attachment-summary"><span class="pill">Fotos ${summary.photos}</span><span class="pill">Videos ${summary.videos}</span><span class="pill">Audios ${summary.audios}</span><span class="pill">Documentos/textos ${summary.documents + summary.texts}</span></div>
+            <div class="row-actions">
+              <button class="button" type="button" data-action="edit-ficha" data-content-type="contributions" data-content-id="${escapeHtml(item.id)}">Editar aportacion</button>
+              <button class="button secondary" type="button" data-action="add-contribution-attachments" data-content-id="${escapeHtml(item.id)}">Añadir adjuntos</button>
+              <button class="button delete-button" type="button" data-action="delete-content" data-content-type="contributions" data-content-id="${escapeHtml(item.id)}">Eliminar aportacion completa</button>
+            </div>
+            <details class="details contribution-detail"><summary>Ver ficha y archivos</summary>${MemolandContributionView.renderContributionCard(item)}<div class="attachment-management-list"><h3>Gestionar archivos</h3>${attachmentRows}</div></details>
+          </div>
+        </article>`;
+      }).join('')}</div>`;
+    }
+
+    function renderPendingAdminAttachments() {
+      elements.adminSelectedFiles.innerHTML = Object.entries(state.pendingAttachments).flatMap(([type, files]) => files.map((file, index) => `
+        <div class="admin-file-row"><span>${escapeHtml(type)}: ${escapeHtml(file.name)} (${escapeHtml(MemolandContributionUpload.formatFileSize(file.size))})</span><button class="button ghost" type="button" data-remove-admin-file data-file-type="${type}" data-file-index="${index}">Quitar</button></div>
+      `)).join('') || '<span class="meta">No hay archivos nuevos seleccionados.</span>';
+    }
+
+    function setAttachmentError(message = '') {
+      elements.attachmentError.textContent = message;
+      elements.attachmentError.classList.toggle('hidden', !message);
+    }
+
+    function openAttachmentManager(contributionId) {
+      const contribution = state.data.contributions.find((item) => String(item.id) === String(contributionId));
+      if (!contribution) return;
+      state.addingAttachments = contribution;
+      state.pendingAttachments = MemolandContributionUpload.emptySelection();
+      elements.adminTextContent.value = '';
+      Object.values(elements.adminFileInputs).forEach((input) => { input.value = ''; });
+      setAttachmentError('');
+      renderPendingAdminAttachments();
+      elements.attachmentModal.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeAttachmentManager() {
+      if (state.addingAttachments && MemolandContributionManagement.isOperationInProgress(state.addingAttachments.id)) return;
+      state.addingAttachments = null;
+      state.pendingAttachments = MemolandContributionUpload.emptySelection();
+      elements.attachmentModal.classList.add('hidden');
+      document.body.style.overflow = '';
+    }
+
+    async function submitContributionAttachments() {
+      const contribution = state.addingAttachments;
+      if (!contribution) return;
+      const summary = MemolandContributionAdmin.attachmentSummary(contribution);
+      const textContent = elements.adminTextContent.value.trim();
+      const errors = MemolandContributionUpload.validateSelection(state.pendingAttachments, {
+        requirePhoto: false,
+        textContent,
+        existingCounts: { photos: summary.photos, videos: summary.videos, audios: summary.audios, documents: summary.documents + summary.texts }
+      });
+      const fileCount = Object.values(state.pendingAttachments).reduce((total, files) => total + files.length, 0);
+      if (!fileCount && !textContent) errors.push('Selecciona al menos un archivo o escribe texto libre.');
+      if (errors.length) {
+        setAttachmentError(errors.join('\n'));
+        return;
+      }
+
+      elements.saveAttachmentButton.disabled = true;
+      elements.saveAttachmentButton.textContent = 'Añadiendo...';
+      try {
+        const formData = MemolandContributionUpload.buildContributionFormData({ selection: state.pendingAttachments, textContent });
+        await MemolandContributionManagement.addAttachments(contribution.id, formData, { apiBaseUrl: API_BASE_URL, token: state.token });
+        closeAttachmentManager();
+        await loadAllData();
+        setStatus('ok', 'Adjuntos incorporados correctamente.');
+      } catch (error) {
+        const normalized = MemolandContributionManagement.normalizeError(error);
+        setAttachmentError([normalized.message, ...normalized.details].join('\n'));
+      } finally {
+        elements.saveAttachmentButton.disabled = false;
+        elements.saveAttachmentButton.textContent = 'Añadir adjuntos';
+      }
+    }
+
+    async function deleteContributionAttachment(contributionId, type, attachmentId) {
+      const contribution = state.data.contributions.find((item) => String(item.id) === String(contributionId));
+      const attachment = contribution?.attachments.find((item) => String(item.id) === String(attachmentId) && item.type === type);
+      if (!contribution || !attachment) return;
+      if (!MemolandContributionAdmin.canDeleteAttachment(contribution, attachment)) {
+        showToast('bad', 'No se puede eliminar la ultima fotografia de una aportacion.');
+        return;
+      }
+      if (!window.confirm(`¿Eliminar este ${attachment.kind === 'document' ? 'documento' : attachment.type} de la aportacion #${contribution.id}?`)) return;
+
+      try {
+        const result = await MemolandContributionManagement.deleteAttachment(contribution.id, attachment.type, attachment.id, { apiBaseUrl: API_BASE_URL, token: state.token });
+        await loadAllData();
+        const message = result.cleanupPending ? 'Adjunto eliminado; queda limpieza remota pendiente.' : 'Adjunto eliminado correctamente.';
+        setStatus(result.cleanupPending ? 'warn' : 'ok', message);
+      } catch (error) {
+        const normalized = MemolandContributionManagement.normalizeError(error);
+        if (normalized.ambiguous) {
+          const current = await MemolandContributionManagement.getContributionState(contribution.id, { apiBaseUrl: API_BASE_URL });
+          if (current.exists === null) {
+            setStatus('bad', 'No se pudo confirmar el resultado. Actualiza los datos antes de volver a intentarlo.');
+            return;
+          }
+          const stillExists = current.exists
+            && MemolandContent.normalizeContribution(current.contribution).attachments.some((item) => String(item.id) === String(attachment.id) && item.type === attachment.type);
+          if (!stillExists) {
+            await loadAllData();
+            setStatus('ok', 'El adjunto ya no existe; eliminacion confirmada tras actualizar.');
+            return;
+          }
+        }
+        setStatus('bad', normalized.message);
+      }
     }
 
     function renderUsersTable() {
@@ -2637,8 +4097,13 @@
       elements.tabs.forEach((tab) => tab.classList.toggle('active', tab.dataset.tab === state.activeTab));
       elements.csvButton.textContent = `Descargar CSV ${labels[state.activeTab]}`;
       elements.usernameFilter.disabled = state.activeTab === 'users';
+      elements.availabilityField.classList.toggle('hidden', state.activeTab !== 'contributions');
       if (state.activeTab === 'users') {
         renderUsersTable();
+        return;
+      }
+      if (state.activeTab === 'contributions') {
+        renderContributionCards();
         return;
       }
       renderContentCards();
@@ -2690,12 +4155,16 @@
     }
 
     function downloadCsv() {
-      if (!state.token || !state.user) {
+      if (!state.token || !MemolandSession.isAdministrator(state.user)) {
         setStatus('bad', 'Debes iniciar sesion para descargar datos.');
         return;
       }
 
       const items = getFilteredItems();
+      if (state.activeTab === 'contributions') {
+        downloadCsvText(MemolandContributionAdmin.buildContributionCsv(items), 'memoland_aportaciones.csv');
+        return;
+      }
       const isUsersCsv = state.activeTab === 'users';
       const keys = isUsersCsv ? USER_CSV_COLUMNS : CONTENT_CSV_COLUMNS;
       const rows = items.map((item) => isUsersCsv ? flattenUserForCsv(item) : flattenContentForCsv(item));
@@ -2703,21 +4172,30 @@
     }
 
     function downloadAllMediaCsv() {
-      if (!state.token || !state.user) {
+      if (!state.token || !MemolandSession.isAdministrator(state.user)) {
         setStatus('bad', 'Debes iniciar sesion para descargar datos.');
         return;
       }
 
-      const rows = getAllContentItems().map((item) => flattenContentForCsv(item));
-      downloadRowsAsCsv(rows, CONTENT_CSV_COLUMNS, 'memoland_todos_los_medios.csv');
+      const contributionColumns = MemolandContributionAdmin.CONTRIBUTION_CSV_COLUMNS;
+      const keys = [...new Set(['entityType', ...CONTENT_CSV_COLUMNS, ...contributionColumns])];
+      const legacyRows = getAllContentItems()
+        .filter((item) => item.__typeKey !== 'contributions')
+        .map((item) => ({ entityType: `legacy:${item.__typeKey}`, ...flattenContentForCsv(item) }));
+      const contributionRows = state.data.contributions.map((item) => MemolandContributionAdmin.contributionCsvRow(item));
+      downloadRowsAsCsv([...legacyRows, ...contributionRows], keys, 'memoland_todos_los_medios.csv');
     }
 
     function downloadRowsAsCsv(rows, keys, filename) {
-      const csv = [
-        keys.join(';'),
+      const csv = `\uFEFF${[
+        keys.map(csvCell).join(';'),
         ...rows.map((row) => keys.map((key) => csvCell(row[key])).join(';'))
-      ].join('\n');
+      ].join('\r\n')}`;
 
+      downloadCsvText(csv, filename);
+    }
+
+    function downloadCsvText(csv, filename) {
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -2857,7 +4335,9 @@
     }
 
     function csvCell(value) {
-      const text = String(value ?? '').replaceAll('"', '""');
+      let text = String(normalizeCsvValue(value));
+      if (/^\s*[=+\-@]/.test(text)) text = `'${text}`;
+      text = text.replaceAll('"', '""');
       return `"${text}"`;
     }
 
@@ -2867,6 +4347,7 @@
     elements.searchInput.addEventListener('input', renderActiveTab);
     elements.usernameFilter.addEventListener('change', renderActiveTab);
     elements.sortSelect.addEventListener('change', renderActiveTab);
+    elements.availabilityFilter.addEventListener('change', renderActiveTab);
     elements.csvButton.addEventListener('click', downloadCsv);
     elements.allMediaCsvButton.addEventListener('click', downloadAllMediaCsv);
     elements.editForm.addEventListener('submit', saveEditedFicha);
@@ -2874,6 +4355,25 @@
     elements.cancelEditButton.addEventListener('click', closeFichaEditor);
     elements.editModal.addEventListener('click', (event) => {
       if (event.target === elements.editModal) closeFichaEditor();
+    });
+    elements.closeAttachmentButton.addEventListener('click', closeAttachmentManager);
+    elements.cancelAttachmentButton.addEventListener('click', closeAttachmentManager);
+    elements.saveAttachmentButton.addEventListener('click', submitContributionAttachments);
+    elements.attachmentModal.addEventListener('click', (event) => {
+      if (event.target === elements.attachmentModal) closeAttachmentManager();
+      const removeButton = event.target.closest('[data-remove-admin-file]');
+      if (!removeButton) return;
+      state.pendingAttachments = MemolandContributionUpload.removeFile(state.pendingAttachments, removeButton.dataset.fileType, removeButton.dataset.fileIndex);
+      renderPendingAdminAttachments();
+    });
+    Object.entries(elements.adminFileInputs).forEach(([type, input]) => {
+      input.addEventListener('change', () => {
+        const result = MemolandContributionUpload.addFiles(state.pendingAttachments, type, input.files);
+        state.pendingAttachments = result.selection;
+        setAttachmentError(result.errors.flatMap((item) => item.messages.map((message) => `${item.fileName}: ${message}`)).join('\n'));
+        input.value = '';
+        renderPendingAdminAttachments();
+      });
     });
     elements.continueDeleteButton.addEventListener('click', showFinalDeleteConfirmation);
     elements.confirmDeleteButton.addEventListener('click', confirmContentDeletion);
@@ -2906,6 +4406,10 @@
     });
     document.addEventListener('keydown', (event) => {
       if (event.key !== 'Escape') return;
+      if (!elements.attachmentModal.classList.contains('hidden')) {
+        closeAttachmentManager();
+        return;
+      }
       if (!elements.deleteModal.classList.contains('hidden')) {
         closeDeleteModal();
         return;
@@ -2919,7 +4423,7 @@
       });
     });
     elements.contentView.addEventListener('click', async (event) => {
-      const button = event.target.closest('button[data-action]');
+      const button = event.target.closest('[data-action]');
       if (!button) return;
       button.disabled = true;
       try {
@@ -2931,6 +4435,16 @@
           const item = state.data[type]?.find((candidate) => String(getContentRecordId(candidate)) === String(button.dataset.contentId));
           if (!item) throw new Error('No se encontró el contenido seleccionado.');
           openDeleteModal(type, item, button);
+        }
+        if (button.dataset.action === 'add-contribution-attachments') {
+          openAttachmentManager(button.dataset.contentId);
+        }
+        if (button.dataset.action === 'delete-contribution-attachment') {
+          await deleteContributionAttachment(button.dataset.contributionId, button.dataset.attachmentType, button.dataset.attachmentId);
+        }
+        if (button.dataset.action === 'open-resource') {
+          const url = MemolandContributionView.safeRemoteUrl(button.dataset.resourceUrl);
+          if (url) window.open(url, '_blank', 'noopener,noreferrer');
         }
         if (button.dataset.action === 'save-roles') {
           await saveRoles(button.dataset.email);
@@ -2946,10 +4460,15 @@
       }
     });
 
+    if (state.token && !MemolandSession.isAdministrator(state.user)) {
+      state.token = '';
+      state.user = null;
+      MemolandSession.clearSession(localStorage, 'memolandAdminToken', 'memolandAdminUser');
+    }
     updateSessionUi();
     renderStats();
     renderCharts();
-    if (state.token && state.user) {
+    if (state.token && MemolandSession.isAdministrator(state.user)) {
       loadAllData();
     } else {
       setApiStatus('pending', 'Inicia sesion para conectar');

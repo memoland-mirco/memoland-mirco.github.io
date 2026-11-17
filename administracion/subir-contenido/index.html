@@ -849,6 +849,81 @@
         max-height: calc(100dvh - 16px);
       }
     }
+    .attachment-picker-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .attachment-picker {
+      min-width: 0;
+      display: grid;
+      gap: 8px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+    }
+
+    .attachment-count {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--brand-dark);
+    }
+
+    .selected-files {
+      display: grid;
+      gap: 7px;
+    }
+
+    .selected-file {
+      display: grid;
+      grid-template-columns: 52px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 9px;
+      padding: 8px;
+      border-radius: 10px;
+      background: #f4f7f8;
+    }
+
+    .selected-file-preview {
+      width: 52px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #dfeaec;
+      font-weight: 800;
+    }
+
+    .selected-file-preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .selected-file-name {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 13px;
+    }
+
+    .remove-file-button {
+      border: 0;
+      background: transparent;
+      color: #b42318;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    @media (max-width: 760px) {
+      .attachment-picker-grid {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
@@ -904,47 +979,41 @@
       <form id="uploadForm" class="panel" autocomplete="off" novalidate>
         <section class="section">
           <div class="section-head">
-            <h2>1. Tipo de contenido</h2>
-            <span class="hint">Foto, audio, texto o video</span>
+            <h2>1. Archivos de la aportacion</h2>
+            <span class="hint">Una o varias fotografias y adjuntos opcionales</span>
           </div>
 
-          <div class="type-grid" role="radiogroup" aria-label="Tipo de contenido">
-            <button class="type-button active" type="button" data-type="foto" aria-pressed="true">
-              <span>F</span>
-              <span>Foto</span>
-            </button>
-            <button class="type-button" type="button" data-type="audio" aria-pressed="false">
-              <span>A</span>
-              <span>Audio</span>
-            </button>
-            <button class="type-button" type="button" data-type="texto" aria-pressed="false">
-              <span>T</span>
-              <span>Texto</span>
-            </button>
-            <button class="type-button" type="button" data-type="video" aria-pressed="false">
-              <span>V</span>
-              <span>Video</span>
-            </button>
-          </div>
-
-          <div class="preview" id="contentPreview">
-            <div class="file-line">
-              <span class="file-icon">F</span>
-              <div><strong>Foto</strong><br>Selecciona una imagen JPG, PNG o HEIC.</div>
+          <p class="section-copy">Todos los archivos compartirán proyecto, ficha y ubicación. Puedes añadir archivos en varias selecciones sin perder los anteriores.</p>
+          <div class="attachment-picker-grid">
+            <div class="attachment-picker" data-upload-type="photos">
+              <div class="label-row"><label for="photosInput">Fotografias *</label><span class="attachment-count" data-count="photos">0 / 20</span></div>
+              <input id="photosInput" type="file" accept=".jpg,.jpeg,.png,.webp,.heic,.heif,image/jpeg,image/png,image/webp,image/heic,image/heif" multiple>
+              <span class="hint">JPG, PNG, WEBP, HEIC. Máximo 10 MB por archivo.</span>
+              <div class="selected-files" data-file-list="photos"></div>
+            </div>
+            <div class="attachment-picker" data-upload-type="videos">
+              <div class="label-row"><label for="videosInput">Videos</label><span class="attachment-count" data-count="videos">0 / 10</span></div>
+              <input id="videosInput" type="file" accept=".mp4,.mov,.webm,.m4v,video/mp4,video/quicktime,video/webm,video/x-m4v" multiple>
+              <span class="hint">MP4, MOV, WEBM o M4V. Máximo 200 MB.</span>
+              <div class="selected-files" data-file-list="videos"></div>
+            </div>
+            <div class="attachment-picker" data-upload-type="audios">
+              <div class="label-row"><label for="audiosInput">Audios</label><span class="attachment-count" data-count="audios">0 / 10</span></div>
+              <input id="audiosInput" type="file" accept=".mp3,.m4a,.wav,.aac,.ogg,.webm,audio/*" multiple>
+              <span class="hint">MP3, M4A, WAV, AAC, OGG o WEBM. Máximo 50 MB.</span>
+              <div class="selected-files" data-file-list="audios"></div>
+            </div>
+            <div class="attachment-picker" data-upload-type="documents">
+              <div class="label-row"><label for="documentsInput">Documentos</label><span class="attachment-count" data-count="documents">0 / 10</span></div>
+              <input id="documentsInput" type="file" accept=".pdf,.txt,.rtf,.doc,.docx,.odt" multiple>
+              <span class="hint">PDF, TXT, RTF, DOC, DOCX u ODT. Máximo 25 MB.</span>
+              <div class="selected-files" data-file-list="documents"></div>
             </div>
           </div>
-
-          <div id="fileField" class="field">
-            <div class="label-row">
-              <label for="contentFile" id="fileLabel">Archivo de foto</label>
-              <span class="hint" id="fileHint">JPG, PNG, JPEG, HEIC</span>
-            </div>
-            <input id="contentFile" type="file" accept="image/*">
-          </div>
-
-          <div id="textField" class="field hidden">
-            <label for="textContent">Texto</label>
-            <textarea id="textContent" placeholder="Escribe aqui el texto que quieres subir. Tambien puedes adjuntar un documento Word, PDF, TXT u otro archivo."></textarea>
+          <div id="attachmentErrors" class="status"></div>
+          <div class="field">
+            <label for="textContent">Texto libre opcional</label>
+            <textarea id="textContent" placeholder="Puede coexistir con documentos y el resto de archivos."></textarea>
           </div>
         </section>
 
@@ -1374,9 +1443,424 @@
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" onerror="this.onerror=null;this.src='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js';"></script>
+  <script data-memoland-module="api-client">
+(function initMemolandApiClient(root, factory) {
+  const api = factory();
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  if (root) root.MemolandApiClient = api;
+}(typeof globalThis !== 'undefined' ? globalThis : this, function createMemolandApiClient() {
+  'use strict';
+
+  const DEFAULT_API_BASE_URL = 'https://www.vocesterritorios.com/apimemoland';
+  const SOURCES = Object.freeze([
+    { key: 'photo', path: '/photo/getAllPhotos', responseKey: 'photos', legacy: true },
+    { key: 'video', path: '/video/getAllVideos', responseKey: 'videos', legacy: true },
+    { key: 'audio', path: '/audio/getAllAudios', responseKey: 'audios', legacy: true },
+    { key: 'text', path: '/text/getAllTexts', responseKey: 'texts', legacy: true },
+    { key: 'contributions', path: '/contributions', responseKey: 'contributions', legacy: false }
+  ]);
+
+  function resolveApiBaseUrl(value) {
+    const configured = String(value || '').trim();
+    return (configured || DEFAULT_API_BASE_URL).replace(/\/+$/, '');
+  }
+
+  function readCollection(payload, responseKey) {
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.[responseKey])) return payload[responseKey];
+    if (Array.isArray(payload?.data)) return payload.data;
+    if (Array.isArray(payload?.result)) return payload.result;
+    return [];
+  }
+
+  async function requestJson(url, fetchImpl) {
+    const response = await fetchImpl(url, { headers: { Accept: 'application/json' } });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const error = new Error(payload?.message || payload?.error || `Error HTTP ${response.status}`);
+      error.status = response.status;
+      throw error;
+    }
+    return payload;
+  }
+
+  async function fetchContentSources(options = {}) {
+    const fetchImpl = options.fetchImpl || (typeof fetch === 'function' ? fetch.bind(globalThis) : null);
+    if (!fetchImpl) throw new Error('No existe una implementacion de fetch disponible.');
+
+    const apiBaseUrl = resolveApiBaseUrl(options.apiBaseUrl);
+    const settled = await Promise.allSettled(
+      SOURCES.map((source) => requestJson(`${apiBaseUrl}${source.path}`, fetchImpl))
+    );
+    const legacy = { photo: [], video: [], audio: [], text: [] };
+    let contributions = [];
+    const errors = [];
+    const loadedSources = [];
+
+    settled.forEach((result, index) => {
+      const source = SOURCES[index];
+      if (result.status === 'rejected') {
+        errors.push({
+          source: source.key,
+          path: source.path,
+          status: result.reason?.status ?? null,
+          message: result.reason?.message || 'No se pudo cargar esta fuente.'
+        });
+        return;
+      }
+
+      const records = readCollection(result.value, source.responseKey);
+      loadedSources.push(source.key);
+      if (source.legacy) legacy[source.key] = records;
+      else contributions = records;
+    });
+
+    return {
+      apiBaseUrl,
+      legacy,
+      contributions,
+      errors,
+      loadedSources,
+      partial: errors.length > 0
+    };
+  }
+
+  return {
+    DEFAULT_API_BASE_URL,
+    SOURCES,
+    resolveApiBaseUrl,
+    readCollection,
+    requestJson,
+    fetchContentSources
+  };
+}));
+  </script>
+  <script data-memoland-module="session">
+(function initMemolandSession(root, factory) {
+  const api = factory();
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  if (root) root.MemolandSession = api;
+}(typeof globalThis !== 'undefined' ? globalThis : this, function createMemolandSession() {
+  'use strict';
+
+  function sanitizeUser(user = {}) {
+    if (!user || typeof user !== 'object') return null;
+    return {
+      id: user.id ?? user._id ?? user.userId ?? '',
+      userId: user.userId ?? user.id ?? user._id ?? '',
+      username: user.username || user.name || user.email || '',
+      email: user.email || '',
+      name: user.name || '',
+      lastName: user.lastName || user.last_name || '',
+      isAdmin: Boolean(user.isAdmin ?? user.is_admin),
+      isAnalyst: Boolean(user.isAnalyst ?? user.is_analyst),
+      isCollaborator: Boolean(user.isCollaborator ?? user.is_collaborator),
+      isBlocked: Boolean(user.is_blocked ?? user.isBlocked)
+    };
+  }
+
+  function isAdministrator(user) {
+    return Boolean(user && sanitizeUser(user)?.isAdmin && !sanitizeUser(user)?.isBlocked);
+  }
+
+  function authHeaders(token, extra = {}) {
+    const normalized = String(token || '').trim();
+    return normalized ? { ...extra, 'x-access-token': normalized } : { ...extra };
+  }
+
+  function readSession(storage, tokenKey, userKey) {
+    if (!storage) return { token: '', user: null };
+    const token = storage.getItem(tokenKey) || '';
+    let storedUser = null;
+    try {
+      storedUser = JSON.parse(storage.getItem(userKey) || 'null');
+    } catch (_error) {
+      storedUser = null;
+    }
+    return { token, user: token ? sanitizeUser(storedUser) : null };
+  }
+
+  function saveSession(storage, tokenKey, userKey, token, user) {
+    const safeUser = sanitizeUser(user);
+    storage.setItem(tokenKey, String(token || ''));
+    storage.setItem(userKey, JSON.stringify(safeUser));
+    return safeUser;
+  }
+
+  function clearSession(storage, tokenKey, userKey) {
+    storage.removeItem(tokenKey);
+    storage.removeItem(userKey);
+  }
+
+  return { sanitizeUser, isAdministrator, authHeaders, readSession, saveSession, clearSession };
+}));
+  </script>
+  <script data-memoland-module="contribution-upload">
+(function initMemolandContributionUpload(root, factory) {
+  const api = factory();
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  if (root) root.MemolandContributionUpload = api;
+}(typeof globalThis !== 'undefined' ? globalThis : this, function createContributionUpload() {
+  'use strict';
+
+  const FILE_RULES = Object.freeze({
+    photos: { maxCount: 20, maxSize: 10 * 1024 * 1024, extensions: ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'], mimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'] },
+    videos: { maxCount: 10, maxSize: 200 * 1024 * 1024, extensions: ['mp4', 'mov', 'webm', 'm4v'], mimeTypes: ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-m4v'] },
+    audios: { maxCount: 10, maxSize: 50 * 1024 * 1024, extensions: ['mp3', 'm4a', 'wav', 'aac', 'ogg', 'webm'], mimeTypes: ['audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/wav', 'audio/x-wav', 'audio/aac', 'audio/ogg', 'audio/webm'] },
+    documents: { maxCount: 10, maxSize: 25 * 1024 * 1024, extensions: ['pdf', 'txt', 'rtf', 'doc', 'docx', 'odt'], mimeTypes: ['application/pdf', 'text/plain', 'application/rtf', 'text/rtf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.oasis.opendocument.text'] }
+  });
+
+  function emptySelection() {
+    return { photos: [], videos: [], audios: [], documents: [] };
+  }
+
+  function fileExtension(file) {
+    const name = String(file?.name || '');
+    return name.includes('.') ? name.split('.').pop().toLowerCase() : '';
+  }
+
+  function fileFingerprint(file) {
+    return [file?.name, file?.size, file?.type, file?.lastModified].map((value) => String(value ?? '')).join('|').toLowerCase();
+  }
+
+  function validateFile(file, type) {
+    const rule = FILE_RULES[type];
+    if (!rule) return ['Tipo de archivo no soportado.'];
+    const errors = [];
+    if (!file || Number(file.size) <= 0) errors.push('El archivo esta vacio.');
+    if (Number(file?.size) > rule.maxSize) errors.push(`Supera el limite de ${formatFileSize(rule.maxSize)}.`);
+    if (!rule.extensions.includes(fileExtension(file))) errors.push('La extension no esta permitida.');
+    if (!rule.mimeTypes.includes(String(file?.type || '').toLowerCase())) errors.push('El tipo MIME no esta permitido.');
+    return errors;
+  }
+
+  function addFiles(selection, type, files) {
+    const next = { ...selection, [type]: [...(selection[type] || [])] };
+    const errors = [];
+    const seen = new Set(next[type].map(fileFingerprint));
+    for (const file of Array.from(files || [])) {
+      const fileErrors = validateFile(file, type);
+      const fingerprint = fileFingerprint(file);
+      if (seen.has(fingerprint)) fileErrors.push('El archivo ya esta seleccionado.');
+      if (next[type].length >= FILE_RULES[type].maxCount) fileErrors.push(`Solo se permiten ${FILE_RULES[type].maxCount} archivos.`);
+      if (fileErrors.length) errors.push({ type, fileName: file?.name || 'Archivo', messages: fileErrors });
+      else {
+        seen.add(fingerprint);
+        next[type].push(file);
+      }
+    }
+    return { selection: next, errors };
+  }
+
+  function removeFile(selection, type, index) {
+    return { ...selection, [type]: (selection[type] || []).filter((_, currentIndex) => currentIndex !== Number(index)) };
+  }
+
+  function getCounts(selection = {}) {
+    return Object.fromEntries(Object.keys(FILE_RULES).map((type) => [type, (selection[type] || []).length]));
+  }
+
+  function validateSelection(selection = {}, options = {}) {
+    const errors = [];
+    const existingCounts = options.existingCounts || {};
+    Object.entries(FILE_RULES).forEach(([type, rule]) => {
+      const files = selection[type] || [];
+      if (Number(existingCounts[type] || 0) + files.length > rule.maxCount) errors.push(`${type}: maximo ${rule.maxCount} archivos en total.`);
+      files.forEach((file, index) => validateFile(file, type).forEach((message) => errors.push(`${type}[${index + 1}]: ${message}`)));
+    });
+    if (options.requirePhoto !== false && !(selection.photos || []).length) errors.push('Debe adjuntarse al menos una fotografia valida.');
+    if (options.textContent && Number(existingCounts.documents || 0) + (selection.documents || []).length + 1 > FILE_RULES.documents.maxCount) {
+      errors.push('documents: el texto libre cuenta dentro del limite total de 10 documentos y textos.');
+    }
+    return errors;
+  }
+
+  function validateCoordinates(latitude, longitude) {
+    const lat = latitude === '' || latitude === null || latitude === undefined ? NaN : Number(latitude);
+    const lng = longitude === '' || longitude === null || longitude === undefined ? NaN : Number(longitude);
+    const errors = [];
+    if (!Number.isFinite(lat) || lat < -90 || lat > 90) errors.push('La latitud debe estar entre -90 y 90.');
+    if (!Number.isFinite(lng) || lng < -180 || lng > 180) errors.push('La longitud debe estar entre -180 y 180.');
+    return errors;
+  }
+
+  function appendField(formData, key, value) {
+    if (value === undefined || value === null) return;
+    formData.append(key, Array.isArray(value) || typeof value === 'object' ? JSON.stringify(value) : String(value));
+  }
+
+  function buildContributionFormData({ fields = {}, selection = {}, textContent = '' } = {}, FormDataClass = FormData) {
+    const formData = new FormDataClass();
+    Object.entries(fields).forEach(([key, value]) => appendField(formData, key, value));
+    Object.keys(FILE_RULES).forEach((type) => {
+      (selection[type] || []).forEach((file) => formData.append(type, file, file.name));
+    });
+    const normalizedText = String(textContent || '').trim();
+    if (normalizedText) formData.append('textContent', normalizedText);
+    return formData;
+  }
+
+  function formatFileSize(bytes) {
+    const value = Number(bytes || 0);
+    if (value < 1024) return `${value} B`;
+    if (value < 1024 ** 2) return `${(value / 1024).toFixed(1)} KB`;
+    return `${(value / 1024 ** 2).toFixed(1)} MB`;
+  }
+
+  return { FILE_RULES, emptySelection, fileExtension, fileFingerprint, validateFile, addFiles, removeFile, getCounts, validateSelection, validateCoordinates, appendField, buildContributionFormData, formatFileSize };
+}));
+  </script>
+  <script data-memoland-module="contribution-management">
+(function initMemolandContributionManagement(root, factory) {
+  const api = factory();
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  if (root) root.MemolandContributionManagement = api;
+}(typeof globalThis !== 'undefined' ? globalThis : this, function createContributionManagement() {
+  'use strict';
+
+  const activeOperations = new Set();
+  const ERROR_CODES = { 400: 'VALIDATION_ERROR', 401: 'AUTH_REQUIRED', 403: 'FORBIDDEN', 404: 'NOT_FOUND', 409: 'CONFLICT', 413: 'PAYLOAD_TOO_LARGE', 500: 'SERVER_ERROR' };
+
+  class ContributionRequestError extends Error {
+    constructor(message, options = {}) {
+      super(message);
+      this.name = 'ContributionRequestError';
+      this.status = options.status ?? null;
+      this.code = options.code || 'REQUEST_ERROR';
+      this.details = options.details || [];
+      this.cleanupFailures = options.cleanupFailures || [];
+      this.cleanupPending = Boolean(options.cleanupPending || this.cleanupFailures.length);
+      this.ambiguous = Boolean(options.ambiguous);
+    }
+  }
+
+  function normalizeError(error) {
+    if (error instanceof ContributionRequestError) return error;
+    const timeout = error?.name === 'AbortError' || /timeout|tiempo/i.test(error?.message || '');
+    return new ContributionRequestError(
+      timeout ? 'La operacion agoto el tiempo de espera. Actualiza los datos antes de repetirla.' : (error?.message || 'No se pudo completar la operacion.'),
+      { code: timeout ? 'TIMEOUT' : 'NETWORK_ERROR', ambiguous: true }
+    );
+  }
+
+  function buildUrl(apiBaseUrl, path) {
+    return `${String(apiBaseUrl || '').replace(/\/+$/, '')}${path}`;
+  }
+
+  async function requestJson(url, options = {}) {
+    const fetchImpl = options.fetchImpl || (typeof fetch === 'function' ? fetch.bind(globalThis) : null);
+    if (!fetchImpl) throw new ContributionRequestError('No existe una implementacion de fetch.', { code: 'FETCH_MISSING' });
+    const controller = typeof AbortController === 'function' ? new AbortController() : null;
+    const timeoutMs = Number(options.timeoutMs || 30000);
+    const timer = controller && timeoutMs > 0 ? setTimeout(() => controller.abort(), timeoutMs) : null;
+    try {
+      const response = await fetchImpl(url, { ...options.request, ...(controller ? { signal: controller.signal } : {}) });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new ContributionRequestError(payload.message || `Error HTTP ${response.status}`, {
+          status: response.status,
+          code: ERROR_CODES[response.status] || 'HTTP_ERROR',
+          details: payload.errors || [],
+          cleanupFailures: payload.cleanupFailures || [],
+          cleanupPending: payload.cleanupPending
+        });
+      }
+      return payload;
+    } catch (error) {
+      throw normalizeError(error);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
+  async function withOperationLock(id, operation) {
+    const key = `contribution:${id}`;
+    if (activeOperations.has(key)) {
+      throw new ContributionRequestError('Ya hay una operacion en curso para esta aportacion.', { code: 'DUPLICATE_OPERATION' });
+    }
+    activeOperations.add(key);
+    try {
+      return await operation();
+    } finally {
+      activeOperations.delete(key);
+    }
+  }
+
+  function authHeaders(token, extra = {}) {
+    if (!token) throw new ContributionRequestError('Autenticacion requerida.', { status: 401, code: 'AUTH_REQUIRED' });
+    return { ...extra, 'x-access-token': token };
+  }
+
+  function updateContribution(id, payload, options = {}) {
+    return withOperationLock(id, () => requestJson(buildUrl(options.apiBaseUrl, `/contributions/${id}`), {
+      fetchImpl: options.fetchImpl,
+      request: { method: 'PUT', headers: authHeaders(options.token, { 'Content-Type': 'application/json' }), body: JSON.stringify(payload) }
+    }));
+  }
+
+  function addAttachments(id, formData, options = {}) {
+    return withOperationLock(id, () => requestJson(buildUrl(options.apiBaseUrl, `/contributions/${id}/attachments`), {
+      fetchImpl: options.fetchImpl,
+      timeoutMs: options.timeoutMs || 180000,
+      request: { method: 'POST', headers: authHeaders(options.token), body: formData }
+    }));
+  }
+
+  function deleteAttachment(id, type, attachmentId, options = {}) {
+    return withOperationLock(id, () => requestJson(buildUrl(options.apiBaseUrl, `/contributions/${id}/attachments/${encodeURIComponent(type)}/${encodeURIComponent(attachmentId)}`), {
+      fetchImpl: options.fetchImpl,
+      request: { method: 'DELETE', headers: authHeaders(options.token) }
+    }));
+  }
+
+  function deleteContribution(id, options = {}) {
+    return withOperationLock(id, () => requestJson(buildUrl(options.apiBaseUrl, `/contributions/${id}`), {
+      fetchImpl: options.fetchImpl,
+      request: { method: 'DELETE', headers: authHeaders(options.token) }
+    }));
+  }
+
+  function createContribution(formData, options = {}) {
+    return withOperationLock('new', () => requestJson(buildUrl(options.apiBaseUrl, '/contributions'), {
+      fetchImpl: options.fetchImpl,
+      timeoutMs: options.timeoutMs || 240000,
+      request: { method: 'POST', headers: authHeaders(options.token), body: formData }
+    }));
+  }
+
+  async function getContributionState(id, options = {}) {
+    try {
+      const payload = await requestJson(buildUrl(options.apiBaseUrl, `/contributions/${id}`), { fetchImpl: options.fetchImpl });
+      return { exists: true, contribution: payload.data || null, error: null };
+    } catch (error) {
+      const normalized = normalizeError(error);
+      if (normalized.status === 404) return { exists: false, contribution: null, error: null };
+      return { exists: null, contribution: null, error: normalized };
+    }
+  }
+
+  function isOperationInProgress(id) {
+    return activeOperations.has(`contribution:${id}`);
+  }
+
+  return {
+    ContributionRequestError,
+    normalizeError,
+    requestJson,
+    withOperationLock,
+    updateContribution,
+    addAttachments,
+    deleteAttachment,
+    deleteContribution,
+    createContribution,
+    getContributionState,
+    isOperationInProgress
+  };
+}));
+  </script>
   <script>
-    const API_BASE_URL = 'https://www.vocesterritorios.com/apimemoland';
-    const PROJECTS_URL = 'https://vocesterritorios.com/apimemoland/projects/getProjects';
+    const API_BASE_URL = MemolandApiClient.resolveApiBaseUrl(window.MEMOLAND_API_BASE_URL);
+    const PROJECTS_URL = `${API_BASE_URL}/projects/getProjects`;
     const FORM_SCHEMA = 'ficha_descriptiva_memoland_v1';
     const MAP_ICON_BASE_PATH = '../../assets/map-icons/220px';
     const CARTO_API_KEY = 'cb1_3s0u_1_9f281c23f8777d9e3233b1dc';
@@ -1395,52 +1879,15 @@
       'resistencia_movilizacion_social'
     ];
 
-    const contentMeta = {
-      foto: {
-        label: 'Foto',
-        endpoint: '/photo/createPhoto',
-        field: 'image',
-        accept: 'image/*',
-        fileLabel: 'Archivo de foto',
-        fileHint: 'JPG, PNG, JPEG, HEIC',
-        icon: 'F'
-      },
-      audio: {
-        label: 'Audio',
-        endpoint: '/audio/createAudio',
-        field: 'audio',
-        accept: 'audio/*',
-        fileLabel: 'Archivo de audio',
-        fileHint: 'M4A, MP3, WAV, AAC',
-        icon: 'A'
-      },
-      texto: {
-        label: 'Texto',
-        endpoint: '/text/createText',
-        field: 'text',
-        accept: '',
-        fileLabel: 'Archivo de texto o documento opcional',
-        fileHint: 'PDF, Word, TXT, ODT, RTF, etc.',
-        icon: 'T'
-      },
-      video: {
-        label: 'Video',
-        endpoint: '/video/createVideo',
-        field: 'video',
-        accept: 'video/mp4,video/quicktime,video/*',
-        fileLabel: 'Archivo de video',
-        fileHint: 'MP4 recomendado',
-        icon: 'V'
-      }
-    };
-
+    const storedUploadSession = MemolandSession.readSession(localStorage, 'memolandUploadToken', 'memolandUploadUser');
     const state = {
-      type: 'foto',
-      token: localStorage.getItem('memolandUploadToken') || '',
-      user: JSON.parse(localStorage.getItem('memolandUploadUser') || 'null'),
+      token: storedUploadSession.token,
+      user: storedUploadSession.user,
+      attachments: MemolandContributionUpload.emptySelection(),
       projects: [],
       map: null,
       marker: null,
+      previewUrls: new WeakMap(),
       placeResults: [],
       placeSearchTimer: null,
       reverseGeocodeRequestId: 0,
@@ -1477,13 +1924,13 @@
       loginStatus: $('#loginStatus'),
       mapStatus: $('#mapStatus'),
       uploadStatus: $('#uploadStatus'),
-      typeButtons: $$('.type-button'),
-      fileField: $('#fileField'),
-      textField: $('#textField'),
-      fileInput: $('#contentFile'),
-      fileLabel: $('#fileLabel'),
-      fileHint: $('#fileHint'),
-      preview: $('#contentPreview'),
+      fileInputs: {
+        photos: $('#photosInput'),
+        videos: $('#videosInput'),
+        audios: $('#audiosInput'),
+        documents: $('#documentsInput')
+      },
+      attachmentErrors: $('#attachmentErrors'),
       summary: $('#summary'),
       uploadReviewModal: $('#uploadReviewModal'),
       uploadReviewSummary: $('#uploadReviewSummary'),
@@ -1505,13 +1952,7 @@
     }
 
     function normalizeUserPayload(userData) {
-      if (!userData) return null;
-      return {
-        ...userData,
-        id: userData.id || userData._id || userData.userId || '',
-        username: userData.username || userData.name || userData.email || '',
-        lastName: userData.lastName || userData.last_name || ''
-      };
+      return MemolandSession.sanitizeUser(userData);
     }
 
     function getValue(id) {
@@ -1822,7 +2263,7 @@
       return missing;
     }
 
-    function validateUploadData(meta, file, textContent) {
+    function validateUploadData() {
       const errors = [];
       const ficha = buildFicha();
       const latitudeText = getValue('latitude');
@@ -1835,6 +2276,8 @@
       if (!getValue('projectId')) addError('Selecciona un proyecto valido.', 'projectSelect');
       if (!getValue('projectName')) addError('El proyecto debe tener un nombre.', 'projectSelect');
       if (!getValue('icon')) addError('Selecciona un icono para el contenido.', 'iconGrid');
+      MemolandContributionUpload.validateSelection(state.attachments, { textContent: getValue('textContent') })
+        .forEach((message) => addError(message, 'photosInput'));
       getMissingFichaFields().forEach((message) => addError(message));
       if (!ficha.place.city) addError('La ciudad es obligatoria.', 'city');
       if (!ficha.place.country) addError('El pais es obligatorio.', 'country');
@@ -1851,9 +2294,6 @@
         addError('La longitud debe estar entre -180 y 180.', 'longitude');
       }
 
-      if (state.type !== 'texto' && !file) addError(`Selecciona un archivo de ${meta.label.toLowerCase()}.`, 'contentFile');
-      if (file && file.size <= 0) addError('El archivo seleccionado esta vacio.', 'contentFile');
-      if (state.type === 'texto' && !file && !textContent) addError('Escribe un texto o adjunta un documento.', 'textContent');
       if (!state.user?.username && !state.user?.email) addError('No se pudo identificar al usuario que sube el contenido.');
 
       return errors;
@@ -2196,29 +2636,53 @@
       );
     }
 
-    function updateTypeUi(type) {
-      state.type = type;
-      const meta = contentMeta[type];
+    function getFilePreviewUrl(file) {
+      if (!state.previewUrls.has(file)) state.previewUrls.set(file, URL.createObjectURL(file));
+      return state.previewUrls.get(file);
+    }
 
-      elements.typeButtons.forEach((button) => {
-        const active = button.dataset.type === type;
-        button.classList.toggle('active', active);
-        button.setAttribute('aria-pressed', String(active));
+    function releaseFilePreview(file) {
+      const url = file && state.previewUrls.get(file);
+      if (url) URL.revokeObjectURL(url);
+      if (file) state.previewUrls.delete(file);
+    }
+
+    function releaseAllFilePreviews() {
+      Object.values(state.attachments).forEach((files) => files.forEach(releaseFilePreview));
+      state.previewUrls = new WeakMap();
+    }
+
+    function renderSelectedFiles() {
+      const counts = MemolandContributionUpload.getCounts(state.attachments);
+      Object.entries(MemolandContributionUpload.FILE_RULES).forEach(([type, rule]) => {
+        const count = document.querySelector(`[data-count="${type}"]`);
+        if (count) count.textContent = `${counts[type]} / ${rule.maxCount}`;
+        const list = document.querySelector(`[data-file-list="${type}"]`);
+        if (!list) return;
+        list.innerHTML = (state.attachments[type] || []).map((file, index) => `
+          <div class="selected-file">
+            <div class="selected-file-preview">${type === 'photos' ? `<img src="${escapeHtml(getFilePreviewUrl(file))}" alt="">` : escapeHtml(type.charAt(0).toUpperCase())}</div>
+            <div class="selected-file-name" title="${escapeHtml(file.name)}"><strong>${escapeHtml(file.name)}</strong><br><span class="hint">${escapeHtml(MemolandContributionUpload.formatFileSize(file.size))}</span></div>
+            <button class="remove-file-button" type="button" data-remove-file data-file-type="${type}" data-file-index="${index}" aria-label="Quitar ${escapeHtml(file.name)}">Quitar</button>
+          </div>
+        `).join('');
       });
+    }
 
-      elements.fileInput.value = '';
-      elements.fileInput.accept = meta.accept;
-      elements.fileLabel.textContent = meta.fileLabel;
-      elements.fileHint.textContent = meta.fileHint;
-      elements.textField.classList.toggle('hidden', type !== 'texto');
-      elements.fileField.classList.toggle('hidden', false);
-      elements.preview.innerHTML = `
-        <div class="file-line">
-          <span class="file-icon">${meta.icon}</span>
-          <div><strong>${meta.label}</strong><br>${type === 'texto' ? 'Escribe texto o adjunta un documento.' : `Selecciona un archivo de ${meta.label.toLowerCase()}.`}</div>
-        </div>
-      `;
-      updateConditionalFields();
+    function showAttachmentErrors(errors = []) {
+      if (!errors.length) {
+        clearStatus(elements.attachmentErrors);
+        return;
+      }
+      const lines = errors.flatMap((error) => error.messages.map((message) => `${error.fileName}: ${message}`));
+      setStatus(elements.attachmentErrors, 'bad', lines.join('\n'));
+    }
+
+    function addSelectedFiles(type, files) {
+      const result = MemolandContributionUpload.addFiles(state.attachments, type, files);
+      state.attachments = result.selection;
+      showAttachmentErrors(result.errors);
+      renderSelectedFiles();
       updateSummary();
     }
 
@@ -2252,10 +2716,9 @@
     }
 
     function updateSummary() {
-      const file = elements.fileInput.files[0];
       const ficha = buildFicha();
       const projectName = getValue('projectName') || 'Memoland';
-      const fileLabel = file ? file.name : state.type === 'texto' ? (getValue('textContent') ? 'Texto escrito en formulario' : 'Pendiente') : 'Pendiente';
+      const counts = MemolandContributionUpload.getCounts(state.attachments);
       const rows = [];
 
       const addRow = (label, value, options = {}) => {
@@ -2265,10 +2728,13 @@
         rows.push([label, normalizedValue, options]);
       };
 
-      addRow('Tipo de contenido', contentMeta[state.type].label);
+      addRow('Tipo de contenido', 'Aportacion multimedia');
       addRow('Usuario', state.user?.username || state.user?.email || '');
-      addRow('Archivo / texto', fileLabel);
-      addRow('Texto escrito', getValue('textContent'), { wide: true });
+      addRow('Fotografias', counts.photos);
+      addRow('Videos', counts.videos);
+      addRow('Audios', counts.audios);
+      addRow('Documentos', counts.documents);
+      addRow('Texto libre', getValue('textContent'), { wide: true });
       addRow('Proyecto', projectName);
       addRow('ID de proyecto', getValue('projectId'));
       addRow('Icono', getValue('icon'));
@@ -2357,16 +2823,13 @@
         }
 
         state.token = token;
-        state.user = normalizeUserPayload(userData);
-        localStorage.setItem('memolandUploadToken', token);
-        localStorage.setItem('memolandUploadUser', JSON.stringify(state.user));
+        state.user = MemolandSession.saveSession(localStorage, 'memolandUploadToken', 'memolandUploadUser', token, normalizeUserPayload(userData));
         updateSessionUi();
         setStatus(elements.loginStatus, 'ok', 'Sesion iniciada correctamente.');
       } catch (error) {
         state.token = '';
         state.user = null;
-        localStorage.removeItem('memolandUploadToken');
-        localStorage.removeItem('memolandUploadUser');
+        MemolandSession.clearSession(localStorage, 'memolandUploadToken', 'memolandUploadUser');
         updateSessionUi();
         setStatus(elements.loginStatus, 'bad', error.message || 'Error al iniciar sesion.');
       } finally {
@@ -2392,7 +2855,7 @@
       const hasErrors = errors.length > 0;
       elements.uploadReviewNotice.textContent = hasErrors
         ? 'Hay campos pendientes. Revisa el resumen y vuelve al formulario para completarlos.'
-        : 'Los campos obligatorios estan completos. Comprueba especialmente proyecto, archivo y ubicacion antes de confirmar.';
+        : 'Los campos obligatorios estan completos. Comprueba especialmente proyecto, archivos y ubicacion antes de confirmar.';
       elements.uploadReviewNotice.classList.toggle('warning', hasErrors);
       setReviewError(hasErrors ? `Falta completar o corregir:\n- ${errors.map((error) => error.message).join('\n- ')}` : '');
       elements.confirmUploadButton.disabled = hasErrors;
@@ -2418,15 +2881,13 @@
       event.preventDefault();
       clearStatus(elements.uploadStatus);
 
-      const meta = contentMeta[state.type];
-      const file = elements.fileInput.files[0] || null;
       const textContent = getValue('textContent');
-      const errors = validateUploadData(meta, file, textContent);
+      const errors = validateUploadData();
       const payload = buildPayload();
 
       if (errors.length) {
         showUploadValidationErrors(errors);
-        openUploadReview({ meta, file, textContent, payload, token: state.token, contentType: state.type }, errors);
+        openUploadReview({ selection: state.attachments, textContent, payload, token: state.token }, errors);
         return;
       }
 
@@ -2440,17 +2901,17 @@
       if (!validPayloadCoordinates) {
         const coordinateErrors = [{ message: 'No se puede preparar la subida sin una ubicacion valida.', fieldId: 'latitude' }];
         showUploadValidationErrors(coordinateErrors);
-        openUploadReview({ meta, file, textContent, payload, token: state.token, contentType: state.type }, coordinateErrors);
+        openUploadReview({ selection: state.attachments, textContent, payload, token: state.token }, coordinateErrors);
         return;
       }
 
-      openUploadReview({ meta, file, textContent, payload, token: state.token, contentType: state.type });
+      openUploadReview({ selection: state.attachments, textContent, payload, token: state.token });
     }
 
     async function submitConfirmedUpload() {
       if (!state.pendingUpload || state.uploadInProgress) return;
 
-      const { meta, file, textContent, payload, token, contentType } = state.pendingUpload;
+      const { selection, textContent, payload, token } = state.pendingUpload;
       const validPayloadCoordinates = Number.isFinite(payload.latitude)
         && Number.isFinite(payload.longitude)
         && payload.latitude >= -90
@@ -2472,26 +2933,8 @@
       elements.uploadButton.disabled = true;
 
       try {
-        const formData = new FormData();
-        Object.entries(payload).forEach(([key, value]) => appendFormValue(formData, key, value));
-
-        if (contentType === 'texto' && textContent) {
-          appendFormValue(formData, 'textContent', textContent);
-        }
-
-        if (file) {
-          formData.append(meta.field, file, file.name);
-        }
-
-        const response = await fetch(`${API_BASE_URL}${meta.endpoint}`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData
-        });
-
-        if (!response.ok) {
-          throw new Error(`La API rechazo la solicitud (estado ${response.status}).`);
-        }
+        const formData = MemolandContributionUpload.buildContributionFormData({ fields: payload, selection, textContent });
+        await MemolandContributionManagement.createContribution(formData, { apiBaseUrl: API_BASE_URL, token });
 
         state.uploadInProgress = false;
         closeUploadReview();
@@ -2500,8 +2943,9 @@
         setStatus(elements.uploadStatus, 'ok', 'Contenido subido correctamente.');
         window.alert('Contenido subido correctamente.');
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Error desconocido';
-        setReviewError(`No se pudo subir el contenido. ${message}`);
+        const normalized = MemolandContributionManagement.normalizeError(error);
+        const details = normalized.details.length ? `\n- ${normalized.details.join('\n- ')}` : '';
+        setReviewError(`No se pudo subir el contenido. ${normalized.message}${details}`);
         setStatus(elements.uploadStatus, 'bad', 'No se pudo subir el contenido. Revisa el mensaje del formulario e intentalo de nuevo.');
       } finally {
         state.uploadInProgress = false;
@@ -2519,8 +2963,7 @@
       closeUploadReview();
       state.token = '';
       state.user = null;
-      localStorage.removeItem('memolandUploadToken');
-      localStorage.removeItem('memolandUploadUser');
+      MemolandSession.clearSession(localStorage, 'memolandUploadToken', 'memolandUploadUser');
       updateSessionUi();
       setStatus(elements.loginStatus, 'warn', 'Sesion cerrada.');
     }
@@ -2528,11 +2971,16 @@
     function clearForm() {
       if (!elements.uploadReviewModal.classList.contains('hidden')) closeUploadReview();
       state.reverseGeocodeRequestId += 1;
+      releaseAllFilePreviews();
       elements.uploadForm.reset();
+      state.attachments = MemolandContributionUpload.emptySelection();
+      Object.values(elements.fileInputs).forEach((input) => { if (input) input.value = ''; });
+      renderSelectedFiles();
+      showAttachmentErrors([]);
       selectIcon(DEFAULT_MAP_ICON);
       clearStatus(elements.uploadStatus);
       updateConditionalFields();
-      updateTypeUi(state.type);
+      updateSummary();
       if (state.map && state.marker) {
         setCoordinates(40.4168, -3.7038, { zoom: 6 });
         $('#latitude').value = '';
@@ -2593,8 +3041,20 @@
         if (setCoordinates(latitude, longitude)) fillPlaceFromCoordinates(latitude, longitude);
       }
     });
-    elements.typeButtons.forEach((button) => {
-      button.addEventListener('click', () => updateTypeUi(button.dataset.type));
+    Object.entries(elements.fileInputs).forEach(([type, input]) => {
+      input.addEventListener('change', () => {
+        addSelectedFiles(type, input.files);
+        input.value = '';
+      });
+    });
+    elements.uploadForm.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-remove-file]');
+      if (!button) return;
+      const removedFile = state.attachments[button.dataset.fileType]?.[Number(button.dataset.fileIndex)];
+      releaseFilePreview(removedFile);
+      state.attachments = MemolandContributionUpload.removeFile(state.attachments, button.dataset.fileType, button.dataset.fileIndex);
+      renderSelectedFiles();
+      updateSummary();
     });
     elements.uploadForm.addEventListener('input', () => {
       updateConditionalFields();
@@ -2609,8 +3069,9 @@
       updateSessionUi();
       renderIconSelector();
       selectIcon(DEFAULT_MAP_ICON);
+      renderSelectedFiles();
       updateConditionalFields();
-      updateTypeUi(state.type);
+      updateSummary();
       initLocationMap();
       loadProjects();
     }
